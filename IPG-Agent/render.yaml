@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: ipg-agent
+    env: python
+    region: oregon
+    plan: free
+    rootDir: IPG-Agent
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn server:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: LINKEDIN_EMAIL
+        sync: false
+      - key: LINKEDIN_PASSWORD
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: WHATSAPP_PHONE
+        sync: false
+      - key: SKILLS
+        value: "Python,JavaScript,React,Node.js,Machine Learning,Data Analysis"
+      - key: LOCATIONS
+        value: "Chennai,Bangalore,Remote"
