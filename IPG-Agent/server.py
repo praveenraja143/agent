@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template
 import os
 import json
 import time
@@ -11,7 +11,11 @@ from bs4 import BeautifulSoup
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder='templates')
+
+@app.route('/')
+def index():
+    return render_template('index.html')
 
 CONFIG_FILE = "data/config.json"
 STATE_FILE = "data/state.json"
