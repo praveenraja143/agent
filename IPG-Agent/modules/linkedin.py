@@ -67,21 +67,51 @@ class LinkedInBot:
         })
         logger.info(f"Chrome driver setup complete (Profile: {self.user_data_dir})")
 
-    def login(self):
+    def login(self, otp_code=None):
         try:
             if not self.driver:
-                self.setup_driver()
+                self.setup_driver(headless=True)
+
+            # 1. Handle OTP submission if provided
+            if otp_code:
+                try:
+                    otp_input = self.driver.find_element(By.ID, "input__email_verification_pin")
+                    otp_input.send_keys(otp_code)
+                    self.driver.find_element(By.ID, "email-pin-submit-button").click()
+                    time.sleep(5)
+                    return "https://www.linkedin.com/feed/" in self.driver.current_url
+                except:
+                    return False
+
+            self.driver.get("https://www.linkedin.com/login")
+            time.sleep(3)
             
-            self.driver.get('https://www.linkedin.com/feed/')
+            # 2. Check if already logged in (persistent profile)
+            if "feed" in self.driver.current_url:
+                return "SUCCESS"
+                
+            # 3. Perform basic login
+            email_el = self.driver.find_element(By.ID, "username")
+            pass_el = self.driver.find_element(By.ID, "password")
+            
+            email_el.send_keys(self.email)
+            pass_el.send_keys(self.password)
+            self.driver.find_element(By.XPATH, "//button[@type='submit']").click()
             time.sleep(5)
             
-                logger.warning("Login verification required. Current URL: " + self.driver.current_url)
-                # If we are stuck at a challenge/otp, we might need manual intervention
-                return False
-                
+            # 4. Check for states
+            curr_url = self.driver.current_url
+            if "feed" in curr_url:
+                return "SUCCESS"
+            elif "checkpoint/challenge" in curr_url:
+                return "OTP_REQUIRED"
+            elif "verification" in curr_url or "checkpoint" in curr_url:
+                return "VERIFICATION_REQUIRED"
+            
+            return "SUCCESS" if "feed" in self.driver.current_url else "FAILED"
         except Exception as e:
             logger.error(f"Login error: {str(e)}")
-            return False
+            return "FAILED"
 
     def post_text(self, content):
         try:
