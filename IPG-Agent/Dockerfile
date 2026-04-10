@@ -25,5 +25,5 @@ COPY . .
 # Create directory for profile
 RUN mkdir -p data/chrome_profile
 
-EXPOSE 8000
-CMD ["python", "server.py"]
+EXPOSE 10000
+CMD ["gunicorn", "--bind", "0.0.0.0:10000", "--timeout", "120", "--workers", "1", "--threads", "4", "server:app"]
