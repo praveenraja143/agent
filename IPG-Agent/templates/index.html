@@ -479,6 +479,13 @@
                         </span>
                     `).join('');
                 }
+
+                // Show connected state if user is saved
+                if(data.user_fullname) {
+                    document.getElementById('profileName').textContent = data.user_fullname;
+                    document.getElementById('connectionCard').style.display = 'block';
+                    document.getElementById('connectPrompt').style.display = 'none';
+                }
             } catch(e) {}
         }
 

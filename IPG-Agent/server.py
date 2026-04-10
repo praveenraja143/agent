@@ -174,29 +174,44 @@ def api_test_linkedin():
         if not email or not password:
             return jsonify({"success": False, "message": "LinkedIn email and password not configured."})
             
-        # Run in headless mode for the test
         bot = LinkedInBot(email, password)
         bot.setup_driver(headless=True)
         
         if bot.login():
-            # Try to get profile name for the 'Continue as' experience
+            # More robust name extraction from the feed sidebar
             try:
-                bot.driver.get("https://www.linkedin.com/settings/user-details")
-                time.sleep(2)
+                bot.driver.get("https://www.linkedin.com/feed/")
+                time.sleep(3)
+                # Try multiple common selectors for the name in the sidebar
                 name = "LinkedIn User"
-                try:
-                    name_element = bot.driver.find_element(By.XPATH, "//h1")
-                    name = name_element.text
-                except:
-                    pass
+                selectors = [
+                    "//div[contains(@class, 't-16 t-black t-bold')]",
+                    "//div[contains(@class, 'identity-block')]//a",
+                    "//div[contains(@class, 'profile-rail-card')]//a"
+                ]
+                for selector in selectors:
+                    try:
+                        el = bot.driver.find_element(By.XPATH, selector)
+                        if el.text.strip():
+                            name = el.text.strip().split('\n')[0]
+                            break
+                    except:
+                        continue
+                
                 bot.close()
+                
+                # Save name to state for persistence
+                state = get_state()
+                state["user_fullname"] = name
+                save_state(state)
+                
                 return jsonify({"success": True, "message": f"Successfully connected as {name}", "user": name})
-            except:
+            except Exception as e:
                 bot.close()
                 return jsonify({"success": True, "message": "Connected successfully!", "user": "LinkedIn User"})
         else:
             bot.close()
-            return jsonify({"success": False, "message": "Connection failed. Manual login (verify_login.py) or correct credentials required."})
+            return jsonify({"success": False, "message": "Connection failed. Please check credentials or security."})
             
     except Exception as e:
         return jsonify({"success": False, "message": f"Driver Error: {str(e)}"})
