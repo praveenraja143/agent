@@ -26,13 +26,18 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 class IPGAgent:
-    def __init__(self, config_path='config.json'):
+    def __init__(self, config_path='config.json', headless=True):
+        self.config_path = config_path
         self.config = self._load_config(config_path)
+        self.headless = headless
         self.linkedin = LinkedInBot(
             email=self.config['linkedin_email'],
             password=self.config['linkedin_password']
         )
-        self.ai = AIContentGenerator(api_key=self.config['openrouter_api_key'])
+        self.ai = AIContentGenerator(
+            api_key=self.config['openrouter_api_key'],
+            provider=self.config.get('ai_provider', 'openrouter')
+        )
         self.hashtags = HashtagEngine()
         self.jobs = JobSearcher(
             skills=self.config['skills'],
@@ -88,8 +93,12 @@ class IPGAgent:
         
         try:
             if not self.linkedin.driver:
-                self.linkedin.login()
+                self.linkedin.setup_driver(headless=self.headless)
             
+            if not self.linkedin.login():
+                logger.error("LinkedIn login failed for daily post")
+                return
+
             success = self.linkedin.post_text(full_post)
             
             if success:
@@ -137,8 +146,12 @@ class IPGAgent:
         
         try:
             if not self.linkedin.driver:
-                self.linkedin.login()
+                self.linkedin.setup_driver(headless=self.headless)
             
+            if not self.linkedin.login():
+                 logger.error("LinkedIn login failed for certificate post")
+                 return False
+
             success = self.linkedin.post_with_image(full_post, cert_path)
             
             if success:
@@ -186,7 +199,12 @@ class IPGAgent:
         logger.info("Starting engagement activity...")
         try:
             if not self.linkedin.driver:
-                self.linkedin.login()
+                self.linkedin.setup_driver(headless=self.headless)
+            
+            if not self.linkedin.login():
+                logger.error("LinkedIn login failed for engagement")
+                return
+
             self.linkedin.engage_with_feed(count=5)
             self.whatsapp.send_post_confirmation('engagement')
         except Exception as e:
@@ -209,6 +227,9 @@ class IPGAgent:
         self._load_state()
         
         try:
+            if not self.linkedin.driver:
+                self.linkedin.setup_driver(headless=self.headless)
+                
             if not self.linkedin.login():
                 logger.error("Login failed. Aborting.")
                 self.whatsapp.send_error("LinkedIn login failed")
@@ -247,24 +268,36 @@ class IPGAgent:
         finally:
             self.linkedin.close()
 
+    def setup_schedule(self):
+        self.scheduler.clear()
+        post_times = self.config.get('post_times', ['09:00', '12:30', '18:00'])
+        job_times = self.config.get('job_search_times', ['10:00', '15:00'])
+        
+        self.scheduler.add_task(self.daily_post, post_times)
+        self.scheduler.add_task(self.search_and_notify_jobs, job_times)
+        self.scheduler.add_task(self.engage, ['11:00', '16:00'])
+        logger.info(f"Scheduled tasks set for POSTs: {post_times}, JOB searches: {job_times}")
+
     def run_scheduled(self):
         logger.info("IPG Agent - Starting scheduled mode")
         self._load_state()
         
-        post_times = self.config.get('post_times', ['09:00', '12:30', '18:00'])
+        last_config_mtime = os.path.getmtime(self.config_path) if os.path.exists(self.config_path) else 0
         
-        self.scheduler.add_task(self.daily_post, post_times)
-        self.scheduler.add_task(self.search_and_notify_jobs, ['10:00', '15:00'])
-        self.scheduler.add_task(self.engage, ['11:00', '16:00'])
-        
-        logger.info(f"Scheduled tasks set for: {post_times}")
+        self.setup_schedule()
         logger.info("Press Ctrl+C to stop")
         
         try:
             while True:
-                if not self.linkedin.driver:
-                    self.linkedin.login()
-                self.scheduler.run_pending()
+                current_mtime = os.path.getmtime(self.config_path) if os.path.exists(self.config_path) else 0
+                if current_mtime > last_config_mtime:
+                    logger.info("Config file changed, reloading schedule...")
+                    self.config = self._load_config(self.config_path)
+                    self.setup_schedule()
+                    last_config_mtime = current_mtime
+
+                self.scheduler.tick()
+                time.sleep(60)
         except KeyboardInterrupt:
             logger.info("Agent stopped by user")
         finally:
@@ -281,9 +314,10 @@ def main():
     parser.add_argument('--search-jobs', action='store_true', help='Search jobs only')
     parser.add_argument('--parse-resume', type=str, help='Parse resume file')
     parser.add_argument('--config', type=str, default='config.json', help='Config file path')
+    parser.add_argument('--headful', action='store_true', help='Run in headful mode (browser visible)')
     args = parser.parse_args()
     
-    agent = IPGAgent(config_path=args.config)
+    agent = IPGAgent(config_path=args.config, headless=not args.headful)
     
     if args.parse_resume:
         skills = agent.parse_resume(args.parse_resume)

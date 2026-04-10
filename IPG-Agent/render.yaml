@@ -1,13 +1,12 @@
 services:
   - type: web
     name: ipg-agent
-    env: python
-    region: oregon
+    env: docker
+    region: oregon 
     plan: free
-    rootDir: IPG-Agent
-    buildCommand: pip install -r requirements.txt
-    startCommand: python -m uvicorn server:app --host 0.0.0.0 --port $PORT
     envVars:
+      - key: PORT
+        value: 8000
       - key: LINKEDIN_EMAIL
         sync: false
       - key: LINKEDIN_PASSWORD

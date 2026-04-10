@@ -1,0 +1,12 @@
+2026-04-08 08:12:39,169 - __main__ - INFO - ============================================================
+2026-04-08 08:12:39,170 - __main__ - INFO - IPG Agent - Starting full run
+2026-04-08 08:12:39,170 - __main__ - INFO - ============================================================
+2026-04-08 08:12:39,171 - WDM - INFO - ====== WebDriver manager ======
+2026-04-08 08:12:41,653 - WDM - INFO - Get LATEST chromedriver version for google-chrome
+2026-04-08 08:12:42,259 - WDM - INFO - Get LATEST chromedriver version for google-chrome
+2026-04-08 08:12:42,560 - WDM - INFO - There is no [win64] chromedriver "146.0.7680.165" for browser google-chrome "146.0.7680" in cache
+2026-04-08 08:12:42,561 - WDM - INFO - Get LATEST chromedriver version for google-chrome
+2026-04-08 08:12:43,333 - WDM - INFO - WebDriver version 146.0.7680.165 selected
+2026-04-08 08:12:43,347 - WDM - INFO - Modern chrome version https://storage.googleapis.com/chrome-for-testing-public/146.0.7680.165/win32/chromedriver-win32.zip
+2026-04-08 08:12:43,347 - WDM - INFO - About to download new driver from https://storage.googleapis.com/chrome-for-testing-public/146.0.7680.165/win32/chromedriver-win32.zip
+2026-04-08 08:12:43,781 - WDM - INFO - Driver downloading response is 200

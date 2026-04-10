@@ -8,18 +8,24 @@ from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 import time
 import logging
+import os
 
 logger = logging.getLogger(__name__)
 
 class LinkedInBot:
-    def __init__(self, email, password):
+    def __init__(self, email, password, user_data_dir='data/chrome_profile'):
         self.email = email
         self.password = password
+        self.user_data_dir = os.path.abspath(user_data_dir)
         self.driver = None
         self.wait = None
 
-    def setup_driver(self):
+    def setup_driver(self, headless=False):
         chrome_options = Options()
+        if headless:
+            chrome_options.add_argument('--headless')
+        
+        chrome_options.add_argument(f'--user-data-dir={self.user_data_dir}')
         chrome_options.add_argument('--disable-blink-features=AutomationControlled')
         chrome_options.add_argument('--start-maximized')
         chrome_options.add_experimental_option('excludeSwitches', ['enable-automation'])
@@ -32,33 +38,49 @@ class LinkedInBot:
         self.driver.execute_cdp_cmd('Page.addScriptToEvaluateOnNewDocument', {
             'source': 'Object.defineProperty(navigator, "webdriver", {get: () => undefined})'
         })
-        logger.info("Chrome driver setup complete")
+        logger.info(f"Chrome driver setup complete (Profile: {self.user_data_dir})")
 
     def login(self):
         try:
             if not self.driver:
                 self.setup_driver()
             
+            self.driver.get('https://www.linkedin.com/feed/')
+            time.sleep(5)
+            
+            # Check if we are already logged in via cookies/profile
+            if 'feed' in self.driver.current_url or 'mynetwork' in self.driver.current_url:
+                logger.info("Already logged in via persistent profile.")
+                return True
+            
+            # Navigate to login if not
             self.driver.get('https://www.linkedin.com/login')
             time.sleep(3)
             
-            email_field = self.wait.until(
-                EC.presence_of_element_located((By.ID, 'username'))
-            )
-            email_field.send_keys(self.email)
+            try:
+                email_field = self.wait.until(
+                    EC.presence_of_element_located((By.ID, 'username'))
+                )
+                email_field.clear()
+                email_field.send_keys(self.email)
+                
+                password_field = self.driver.find_element(By.ID, 'password')
+                password_field.clear()
+                password_field.send_keys(self.password)
+                
+                login_btn = self.driver.find_element(By.XPATH, '//button[@type="submit"]')
+                login_btn.click()
+                time.sleep(5)
+            except Exception as e:
+                logger.warning(f"Login elements not found or already logged in: {str(e)}")
             
-            password_field = self.driver.find_element(By.ID, 'password')
-            password_field.send_keys(self.password)
-            
-            login_btn = self.driver.find_element(By.XPATH, '//button[@type="submit"]')
-            login_btn.click()
-            time.sleep(5)
-            
+            # Double check
             if 'feed' in self.driver.current_url or 'mynetwork' in self.driver.current_url:
                 logger.info("Login successful!")
                 return True
             else:
-                logger.warning("Login may have failed. Current URL: " + self.driver.current_url)
+                logger.warning("Login verification required. Current URL: " + self.driver.current_url)
+                # If we are stuck at a challenge/otp, we might need manual intervention
                 return False
                 
         except Exception as e:

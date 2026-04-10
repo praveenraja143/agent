@@ -7,6 +7,11 @@ import random
 import requests as req
 from datetime import datetime
 from bs4 import BeautifulSoup
+from modules.linkedin import LinkedInBot
+from modules.ai_content import AIContentGenerator
+from modules.hashtag_engine import HashtagEngine
+from modules.scheduler import TaskScheduler
+import threading
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -17,7 +22,7 @@ app = Flask(__name__, template_folder='templates')
 def index():
     return render_template('index.html')
 
-CONFIG_FILE = "data/config.json"
+CONFIG_FILE = "config.json"
 STATE_FILE = "data/state.json"
 
 def get_config():
@@ -76,7 +81,9 @@ def health():
 @app.route("/api/config", methods=["POST"])
 def save_config_endpoint():
     data = request.json
-    save_config(data)
+    config = get_config()
+    config.update(data)
+    save_config(config)
     state = get_state()
     state["skills"] = data.get("skills", [])
     save_state(state)
@@ -92,13 +99,6 @@ def get_config_endpoint():
 @app.route("/api/linkedin/post", methods=["POST"])
 def post_to_linkedin():
     try:
-        from selenium import webdriver
-        from selenium.webdriver.common.by import By
-        from selenium.webdriver.support.ui import WebDriverWait
-        from selenium.webdriver.support import expected_conditions as EC
-        from selenium.webdriver.chrome.options import Options
-        from selenium.webdriver.common.keys import Keys
-        
         data = request.json
         config = get_config()
         email = data.get("linkedin_email") or config.get("linkedin_email", "")
@@ -108,62 +108,55 @@ def post_to_linkedin():
         if not email or not password:
             return jsonify({"success": False, "message": "LinkedIn credentials required"})
         
-        chrome_options = Options()
-        chrome_options.add_argument("--headless")
-        chrome_options.add_argument("--no-sandbox")
-        chrome_options.add_argument("--disable-dev-shm-usage")
-        chrome_options.add_argument("--disable-blink-features=AutomationControlled")
-        chrome_options.add_argument("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+        bot = LinkedInBot(email, password)
+        bot.setup_driver(headless=True)
         
-        driver = webdriver.Chrome(options=chrome_options)
-        wait = WebDriverWait(driver, 20)
+        if not bot.login():
+            bot.close()
+            return jsonify({"success": False, "message": "Login failed (CAPTCHA or Security Challenge)"})
+            
+        success = bot.post_text(content)
+        bot.close()
         
-        driver.get("https://www.linkedin.com/login")
-        time.sleep(2)
-        
-        email_field = wait.until(EC.presence_of_element_located((By.ID, "username")))
-        email_field.send_keys(email)
-        password_field = driver.find_element(By.ID, "password")
-        password_field.send_keys(password)
-        driver.find_element(By.XPATH, "//button[@type='submit']").click()
-        time.sleep(5)
-        
-        if "feed" not in driver.current_url and "mynetwork" not in driver.current_url:
-            driver.quit()
-            return jsonify({"success": False, "message": "Login failed"})
-        
-        driver.get("https://www.linkedin.com/feed/")
-        time.sleep(3)
-        
-        start_post = wait.until(EC.element_to_be_clickable((By.XPATH, "//button[contains(@aria-label, 'Start a post')]")))
-        start_post.click()
-        time.sleep(2)
-        
-        text_area = wait.until(EC.presence_of_element_located((By.XPATH, "//div[@role='textbox']")))
-        text_area.click()
-        time.sleep(1)
-        
-        for line in content.split("\n"):
-            text_area.send_keys(line)
-            text_area.send_keys(Keys.SHIFT + Keys.ENTER)
-            time.sleep(0.2)
-        
-        time.sleep(2)
-        driver.find_element(By.XPATH, "//button[@type='submit' and contains(@class, 'share-actions__primary-action')]").click()
-        time.sleep(3)
-        driver.quit()
-        
-        state = get_state()
-        state["post_count"] = state.get("post_count", 0) + 1
-        state["last_post"] = datetime.now().isoformat()
-        save_state(state)
-        
-        return jsonify({"success": True, "message": "Posted to LinkedIn"})
+        if success:
+            state = get_state()
+            state["post_count"] = state.get("post_count", 0) + 1
+            state["last_post"] = datetime.now().isoformat()
+            save_state(state)
+            return jsonify({"success": True, "message": "Posted to LinkedIn"})
+        else:
+            return jsonify({"success": False, "message": "Failed to publish post"})
         
     except Exception as e:
-        if "driver" in locals():
-            driver.quit()
-        return jsonify({"success": False, "message": str(e)})
+        return jsonify({"success": False, "message": "Error: " + str(e)})
+
+@app.route("/api/linkedin/test", methods=["POST"])
+def linkedin_test():
+    config = get_config()
+    email = config.get("linkedin_email", "")
+    password = config.get("linkedin_password", "")
+    
+    if not email or not password:
+        return jsonify({"success": False, "message": "LinkedIn email and password not configured."})
+        
+    try:
+        bot = LinkedInBot(email, password)
+        bot.setup_driver(headless=True)
+        
+        if bot.login():
+            bot.close()
+            return jsonify({"success": True, "message": "✅ Verification Successful! LinkedIn account is connected properly."})
+        
+        current_url = bot.driver.current_url
+        bot.close()
+        
+        if "checkpoint" in current_url or "challenge" in current_url:
+            return jsonify({"success": False, "message": "⚠️ LinkedIn blocked the login (Security/OTP/Captcha request). Please run 'python verify_login.py' to login manually once."})
+        else:
+            return jsonify({"success": False, "message": "❌ Login Failed! Incorrect Email/Password."})
+            
+    except Exception as e:
+        return jsonify({"success": False, "message": f"Error: {str(e)}"})
 
 @app.route("/api/certificate", methods=["POST"])
 def post_certificate():
@@ -187,9 +180,12 @@ def post_certificate():
             return jsonify({"success": False, "message": "LinkedIn credentials required"})
         
         api_key = config.get("openrouter_api_key", "")
+        provider = config.get("ai_provider", "openrouter")
+        ai = AIContentGenerator(api_key, provider)
+        hashtags_engine = HashtagEngine()
         
-        content = generate_cert_content(cert_name, issuing_org, skills, api_key)
-        hashtags = generate_cert_hashtags(cert_name, skills, issuing_org)
+        content = ai.generate_certificate_post(cert_name, issuing_org, skills)
+        hashtags = hashtags_engine.get_certificate_hashtags(cert_name, skills, issuing_org)
         full_post = f"{content}\n\n{hashtags}"
         
         chrome_options = Options()
@@ -337,26 +333,17 @@ def parse_resume():
 def ai_generate():
     try:
         data = request.json
-        api_key = data.get("api_key", "") or get_config().get("openrouter_api_key", "")
+        config = get_config()
+        api_key = data.get("api_key", "") or config.get("openrouter_api_key", "")
+        provider = data.get("provider", "") or config.get("ai_provider", "openrouter")
         
-        resp = req.post(
-            "https://openrouter.ai/api/v1/chat/completions",
-            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-            json={
-                "model": data.get("model", "qwen/qwen-2.5-coder-32b-instruct"),
-                "messages": [
-                    {"role": "system", "content": data.get("system", "You are a LinkedIn content creator.")},
-                    {"role": "user", "content": data.get("prompt", "")}
-                ],
-                "max_tokens": data.get("max_tokens", 400),
-                "temperature": data.get("temperature", 0.8),
-            },
-            timeout=30
-        )
+        ai = AIContentGenerator(api_key, provider)
+        prompt = data.get("prompt", "")
         
-        if resp.status_code == 200:
-            return jsonify({"content": resp.json()["choices"][0]["message"]["content"]})
-        return jsonify({"content": "", "error": f"API error: {resp.status_code}"})
+        # Simple call_api for generic prompts
+        content = ai._call_api(prompt)
+        
+        return jsonify({"content": content})
         
     except Exception as e:
         return jsonify({"content": "", "error": str(e)})
@@ -444,56 +431,29 @@ def auto_post():
             driver.quit()
         return jsonify({"success": False, "message": str(e)})
 
-def generate_daily_post(skills, post_type, api_key):
-    prompts = {
-        "tech_tip": f"Share a practical tech tip about: {', '.join(skills[:5])}.",
-        "career_advice": f"Share career advice for developers with skills in: {', '.join(skills[:5])}.",
-        "project_idea": f"Describe an impressive project using: {', '.join(skills[:5])}.",
-        "industry_insight": f"Share an insight about tech industry related to: {', '.join(skills[:5])}.",
-        "learning_journey": f"Share a learning journey about: {', '.join(skills[:5])}.",
-        "motivational": "Write a motivational post about tech career growth.",
-    }
+@app.route("/api/auto-post/preview", methods=["POST"])
+def auto_post_preview():
+    config = get_config()
+    state = get_state()
+    skills = state.get("skills", config.get("skills", []))
     
-    prompt = f"{prompts.get(post_type, prompts['tech_tip'])}\nProfessional LinkedIn post, under 200 words, 3-5 emojis, NO hashtags."
+    if not skills:
+        return jsonify({"success": False, "message": "No skills configured. Please add some first."})
+        
+    post_types = ["tech_tip", "career_advice", "project_idea", "industry_insight", "learning_journey", "motivational"]
+    post_type = random.choice(post_types)
     
-    if api_key:
-        try:
-            resp = req.post(
-                "https://openrouter.ai/api/v1/chat/completions",
-                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-                json={"model": "qwen/qwen-2.5-coder-32b-instruct", "messages": [{"role": "user", "content": prompt}], "max_tokens": 400, "temperature": 0.8},
-                timeout=30
-            )
-            if resp.status_code == 200:
-                return resp.json()["choices"][0]["message"]["content"].strip()
-        except:
-            pass
+    api_key = config.get("openrouter_api_key", "")
+    provider = config.get("ai_provider", "openrouter")
+    ai = AIContentGenerator(api_key, provider)
+    hashtags_engine = HashtagEngine()
     
-    return f"Exciting developments in tech! I've been exploring {', '.join(skills[:3])} and learning continuously.\n\nWhat are you working on? Share below! "
+    content = ai.generate_daily_post(skills, post_type)
+    hashtags = hashtags_engine.get_hashtags(post_type, skills)
+    full_post = f"{content}\n\n{hashtags}"
+    
+    return jsonify({"success": True, "content": full_post, "post_type": post_type})
 
-def generate_hashtags(post_type, skills):
-    tags = ["#LinkedIn", "#Professional", "#Growth", "#Learning", "#TechCommunity"]
-    for s in skills[:3]:
-        tags.append(f"#{s.replace(' ', '')}")
-    return " ".join(tags[:12])
-
-def generate_cert_content(cert_name, org, skills, api_key):
-    skills_text = ", ".join(skills) if skills else "Professional Development"
-    prompt = f"LinkedIn post for earning {cert_name} from {org}. Skills: {skills_text}. Professional, emojis, under 200 words, NO hashtags."
-    
-    if api_key:
-        try:
-            resp = req.post(
-                "https://openrouter.ai/api/v1/chat/completions",
-                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-                json={"model": "qwen/qwen-2.5-coder-32b-instruct", "messages": [{"role": "user", "content": prompt}], "max_tokens": 400, "temperature": 0.8},
-                timeout=30
-            )
-            if resp.status_code == 200:
-                return resp.json()["choices"][0]["message"]["content"].strip()
-        except:
-            pass
-    
     return f"Excited to share that I've earned {cert_name} from {org}!\n\nSkills: {skills_text}\n\nAlways learning and growing! "
 
 def generate_cert_hashtags(cert_name, skills, org):
@@ -504,6 +464,18 @@ def generate_cert_hashtags(cert_name, skills, org):
         tags.append(f"#{org.replace(' ', '')}")
     return " ".join(tags[:15])
 
+def run_scheduler_bg():
+    from main import IPGAgent
+    agent = IPGAgent()
+    agent.setup_schedule()
+    logger.info("Background scheduler started")
+    while True:
+        agent.scheduler.tick()
+        time.sleep(60)
+
 if __name__ == "__main__":
+    # Start scheduler thread
+    threading.Thread(target=run_scheduler_bg, daemon=True).start()
+    
     port = int(os.getenv("PORT", 8000))
     app.run(host="0.0.0.0", port=port)

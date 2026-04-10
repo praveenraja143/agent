@@ -1,8 +1,8 @@
 {
-  "linkedin_email": "your_email@example.com",
-  "linkedin_password": "your_password",
-  "openrouter_api_key": "your_openrouter_api_key",
-  "whatsapp_phone": "+91XXXXXXXXXX",
+  "linkedin_email": "praveenrajapaids23@jkkmct.edu.in",
+  "linkedin_password": "Praveen@143",
+  "openrouter_api_key": "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",
+  "whatsapp_phone": "+917603835392",
   "skills": [
     "Python",
     "JavaScript",
@@ -11,8 +11,18 @@
     "Machine Learning",
     "Data Analysis"
   ],
-  "locations": ["Chennai", "Bangalore", "Remote"],
+  "locations": [
+    "Chennai",
+    "Bangalore",
+    "Remote"
+  ],
   "certificate_folder": "certificates",
-  "post_times": ["09:00", "12:30", "18:00"],
-  "job_search_times": ["10:00", "15:00"]
+  "post_times": [
+    "18:00"
+  ],
+  "job_search_times": [
+    "10:00",
+    "15:00"
+  ],
+  "ai_provider": "openrouter"
 }

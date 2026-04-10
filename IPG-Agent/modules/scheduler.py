@@ -23,6 +23,13 @@ class TaskScheduler:
             schedule.run_pending()
             time.sleep(60)
 
+    def tick(self):
+        schedule.run_pending()
+
+    def clear(self):
+        schedule.clear()
+        self.tasks.clear()
+
     def stop(self):
         self.running = False
         schedule.clear()
