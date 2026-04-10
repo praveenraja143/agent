@@ -24,6 +24,9 @@ class LinkedInBot:
         chrome_options = Options()
         if headless:
             chrome_options.add_argument('--headless')
+            chrome_options.add_argument('--no-sandbox')
+            chrome_options.add_argument('--disable-dev-shm-usage')
+            chrome_options.add_argument('--disable-gpu')
         
         chrome_options.add_argument(f'--user-data-dir={self.user_data_dir}')
         chrome_options.add_argument('--disable-blink-features=AutomationControlled')
@@ -31,10 +34,23 @@ class LinkedInBot:
         chrome_options.add_experimental_option('excludeSwitches', ['enable-automation'])
         chrome_options.add_experimental_option('useAutomationExtension', False)
         
-        service = Service(ChromeDriverManager().install())
-        self.driver = webdriver.Chrome(service=service, options=chrome_options)
+        # In Render (Linux), try to use system chrome
+        try:
+            if os.path.exists('/usr/bin/google-chrome'):
+                chrome_options.binary_location = '/usr/bin/google-chrome'
+            
+            # Try to use webdriver-manager but with a fallback
+            try:
+                service = Service(ChromeDriverManager().install())
+                self.driver = webdriver.Chrome(service=service, options=chrome_options)
+            except Exception as e:
+                logger.warning(f"ChromeDriverManager failed: {str(e)}. Attempting default initialization.")
+                self.driver = webdriver.Chrome(options=chrome_options)
+        except Exception as e:
+            logger.error(f"Failed to initialize Chrome: {str(e)}")
+            raise e
+
         self.wait = WebDriverWait(self.driver, 20)
-        
         self.driver.execute_cdp_cmd('Page.addScriptToEvaluateOnNewDocument', {
             'source': 'Object.defineProperty(navigator, "webdriver", {get: () => undefined})'
         })

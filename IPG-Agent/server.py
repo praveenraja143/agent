@@ -140,8 +140,8 @@ def post_to_linkedin():
     except Exception as e:
         return jsonify({"success": False, "message": "Error: " + str(e)})
 
-@app.route("/api/linkedin/test", methods=["POST"])
-def test_linkedin():
+@app.route("/api/test/linkedin", methods=["POST"])
+def api_test_linkedin():
     try:
         config = get_config()
         email = config.get("linkedin_email")
@@ -150,16 +150,21 @@ def test_linkedin():
         if not email or not password:
             return jsonify({"success": False, "message": "LinkedIn email and password not configured."})
             
+        # Run in headless mode for the test
         bot = LinkedInBot(email, password)
         bot.setup_driver(headless=True)
         
         if bot.login():
-            # Try to get profile name
+            # Try to get profile name for the 'Continue as' experience
             try:
                 bot.driver.get("https://www.linkedin.com/settings/user-details")
                 time.sleep(2)
-                name_element = bot.driver.find_element(By.XPATH, "//h1")
-                name = name_element.text
+                name = "LinkedIn User"
+                try:
+                    name_element = bot.driver.find_element(By.XPATH, "//h1")
+                    name = name_element.text
+                except:
+                    pass
                 bot.close()
                 return jsonify({"success": True, "message": f"Successfully connected as {name}", "user": name})
             except:
@@ -167,10 +172,10 @@ def test_linkedin():
                 return jsonify({"success": True, "message": "Connected successfully!", "user": "LinkedIn User"})
         else:
             bot.close()
-            return jsonify({"success": False, "message": "Connection failed. Please run verify_login.py locally or check credentials."})
+            return jsonify({"success": False, "message": "Connection failed. Manual login (verify_login.py) or correct credentials required."})
             
     except Exception as e:
-        return jsonify({"success": False, "message": str(e)})
+        return jsonify({"success": False, "message": f"Driver Error: {str(e)}"})
 
 @app.route("/api/certificate", methods=["POST"])
 def post_certificate():
