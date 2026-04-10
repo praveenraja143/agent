@@ -82,7 +82,26 @@ Requirements:
         message += "_Click links to apply directly!_"
         return message
 
-    def _call_api(self, prompt, max_retries=2):
+    def generate_custom_post(self, user_prompt):
+        if not user_prompt:
+            return "Please provide a prompt for the AI."
+            
+        full_prompt = f"""Write a LinkedIn post based on this request: {user_prompt}
+        
+Requirements:
+- Professional LinkedIn format
+- Engaging hook
+- Valuable content
+- Line breaks for readability
+- 3-5 emojis
+- NO hashtags (added separately)"""
+
+        return self._call_api(full_prompt, fallback_on_error=False)
+
+    def _call_api(self, prompt, max_retries=2, fallback_on_error=True):
+        if not self.api_key:
+            return "Error: API Key missing. Please set your API Key in Settings." if not fallback_on_error else self._fallback_post(prompt)
+
         payload = {
             "model": self.model,
             "messages": [
@@ -95,10 +114,11 @@ Requirements:
                     "content": prompt
                 }
             ],
-            "max_tokens": 500,
-            "temperature": 0.8,
+            "max_tokens": 1000,
+            "temperature": 0.7,
         }
 
+        last_error = "Unknown error"
         for attempt in range(max_retries):
             try:
                 response = requests.post(
@@ -112,16 +132,20 @@ Requirements:
                     data = response.json()
                     return data['choices'][0]['message']['content'].strip()
                 else:
-                    logger.warning(f"API error: {response.status_code}")
+                    last_error = f"API Error {response.status_code}: {response.text}"
+                    logger.warning(last_error)
 
             except Exception as e:
-                logger.error(f"API call attempt {attempt + 1} failed: {str(e)}")
+                last_error = str(e)
+                logger.error(f"API attempt {attempt + 1} failed: {last_error}")
 
-        return self._fallback_post(prompt)
+        if fallback_on_error:
+            return self._fallback_post(prompt)
+        return f"Error: {last_error}"
 
     def _fallback_post(self, prompt):
         return """🚀 Exciting developments in tech!
-
+        
 I've been exploring new technologies and learning continuously. The tech industry is evolving fast and it's important to stay updated.
 
 What are you learning these days? Share in the comments! 👇

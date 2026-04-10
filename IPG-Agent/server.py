@@ -428,8 +428,8 @@ def ai_generate():
         ai = AIContentGenerator(api_key, provider)
         prompt = data.get("prompt", "")
         
-        # Simple call_api for generic prompts
-        content = ai._call_api(prompt)
+        # Enhanced custom generation
+        content = ai.generate_custom_post(prompt)
         
         return jsonify({"content": content})
         
