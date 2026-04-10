@@ -183,25 +183,23 @@ def api_test_linkedin():
         bot.setup_driver(headless=True)
         
         if bot.login():
-            # More robust name extraction from the feed sidebar
+            # Most robust name extraction: Go to /in/me/ which redirects to your own profile
             try:
-                bot.driver.get("https://www.linkedin.com/feed/")
-                time.sleep(3)
-                # Try multiple common selectors for the name in the sidebar
+                bot.driver.get("https://www.linkedin.com/in/me/")
+                time.sleep(4)
+                
+                # The <h1> on your own profile is ALWAYS your name
                 name = "LinkedIn User"
-                selectors = [
-                    "//div[contains(@class, 't-16 t-black t-bold')]",
-                    "//div[contains(@class, 'identity-block')]//a",
-                    "//div[contains(@class, 'profile-rail-card')]//a"
-                ]
-                for selector in selectors:
+                try:
+                    name_el = bot.driver.find_element(By.TAG_NAME, "h1")
+                    if name_el and name_el.text.strip():
+                        name = name_el.text.strip().split("\n")[0]
+                except:
+                    # Fallback to current feed detection if /in/ failed
                     try:
-                        el = bot.driver.find_element(By.XPATH, selector)
-                        if el.text.strip():
-                            name = el.text.strip().split('\n')[0]
-                            break
-                    except:
-                        continue
+                        name_el = bot.driver.find_element(By.XPATH, "//div[contains(@class, 't-16 t-black t-bold')]")
+                        name = name_el.text.strip()
+                    except: pass
                 
                 bot.close()
                 
