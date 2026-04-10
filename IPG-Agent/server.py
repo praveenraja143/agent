@@ -13,6 +13,30 @@ from modules.hashtag_engine import HashtagEngine
 from modules.scheduler import TaskScheduler
 from modules.resume_parser import ResumeParser
 import threading
+from sqlalchemy import create_all, create_engine, Column, String, Text, JSON
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+
+# Database Setup (Persistent storage for Render)
+DATABASE_URL = os.getenv("DATABASE_URL")
+Base = declarative_base()
+
+class ConfigStore(Base):
+    __tablename__ = "config_store"
+    key = Column(String(50), primary_key=True)
+    value = Column(JSON)
+
+if DATABASE_URL:
+    try:
+        if DATABASE_URL.startswith("postgres://"):
+            DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+        engine = create_engine(DATABASE_URL)
+        SessionLocal = sessionmaker(bind=engine)
+        Base.metadata.create_all(engine)
+        logger.info("Connected to persistent database.")
+    except Exception as e:
+        logger.error(f"DB Connection failed: {str(e)}")
+        DATABASE_URL = None
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -54,6 +78,12 @@ STATE_FILE = "data/state.json"
 global_bots = {}
 
 def get_config():
+    if DATABASE_URL:
+        db = SessionLocal()
+        item = db.query(ConfigStore).filter(ConfigStore.key == "config").first()
+        db.close()
+        if item: return item.value
+
     if os.path.exists(CONFIG_FILE):
         with open(CONFIG_FILE, 'r') as f:
             return json.load(f)
@@ -68,17 +98,45 @@ def get_config():
     }
 
 def save_config(config):
+    if DATABASE_URL:
+        db = SessionLocal()
+        item = db.query(ConfigStore).filter(ConfigStore.key == "config").first()
+        if item:
+            item.value = config
+        else:
+            db.add(ConfigStore(key="config", value=config))
+        db.commit()
+        db.close()
+        return
+
     os.makedirs("data", exist_ok=True)
     with open(CONFIG_FILE, 'w') as f:
         json.dump(config, f, indent=2)
 
 def get_state():
+    if DATABASE_URL:
+        db = SessionLocal()
+        item = db.query(ConfigStore).filter(ConfigStore.key == "state").first()
+        db.close()
+        if item: return item.value
+
     if os.path.exists(STATE_FILE):
         with open(STATE_FILE, 'r') as f:
             return json.load(f)
-    return {"post_count": 0, "cert_count": 0, "skills": []}
+    return {"post_count": 0, "cert_count": 0, "skills": [], "user_fullname": "LinkedIn User"}
 
 def save_state(state):
+    if DATABASE_URL:
+        db = SessionLocal()
+        item = db.query(ConfigStore).filter(ConfigStore.key == "state").first()
+        if item:
+            item.value = state
+        else:
+            db.add(ConfigStore(key="state", value=state))
+        db.commit()
+        db.close()
+        return
+
     os.makedirs("data", exist_ok=True)
     with open(STATE_FILE, 'w') as f:
         json.dump(state, f, indent=2)
