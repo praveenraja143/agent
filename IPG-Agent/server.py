@@ -177,51 +177,69 @@ def api_test_linkedin():
         password = config.get("linkedin_password")
         
         if not email or not password:
-            return jsonify({"success": False, "message": "LinkedIn email and password not configured."})
+            return jsonify({"success": False, "message": "First, enter your Login details in the boxes above."})
             
         bot = LinkedInBot(email, password)
         bot.setup_driver(headless=True)
+        login_status = bot.login()
         
-        if bot.login():
-            # Most robust name extraction: Go to /in/me/ which redirects to your own profile
+        if login_status == "OTP_REQUIRED":
+            # Keep the driver open for 2 mins to wait for OTP
+            session['pending_bot'] = True # Marker for UI
+            return jsonify({"success": True, "status": "OTP_REQUIRED", "message": "LinkedIn sent a code to your Mail. Enter it below."})
+            
+        if login_status == "SUCCESS" or login_status is True:
+            # Discovery process...
+            name = "LinkedIn User"
             try:
                 bot.driver.get("https://www.linkedin.com/in/me/")
                 time.sleep(4)
-                
-                # The <h1> on your own profile is ALWAYS your name
-                name = "LinkedIn User"
-                try:
-                    name_el = bot.driver.find_element(By.TAG_NAME, "h1")
-                    if name_el and name_el.text.strip():
-                        name = name_el.text.strip().split("\n")[0]
-                except:
-                    # Fallback to current feed detection if /in/ failed
-                    try:
-                        name_el = bot.driver.find_element(By.XPATH, "//div[contains(@class, 't-16 t-black t-bold')]")
-                        name = name_el.text.strip()
-                    except: pass
-                
-                bot.close()
-                
-                # Save name to state for persistence
-                state = get_state()
-                state["user_fullname"] = name
-                save_state(state)
-                
-                return jsonify({"success": True, "message": f"Successfully connected as {name}", "user": name})
-            except Exception as e:
-                logger.error(f"Profile discovery error: {str(e)}")
-                if 'bot' in locals() and bot.driver:
-                    bot.close()
-                return jsonify({"success": True, "message": "Connected successfully! (Profile discovery busy)", "user": "LinkedIn User"})
-        else:
-            if 'bot' in locals() and bot.driver:
-                bot.close()
-            return jsonify({"success": False, "message": "Connection failed. Please check credentials."})
+                name_el = bot.driver.find_element(By.TAG_NAME, "h1")
+                name = name_el.text.strip().split("\n")[0]
+            except: pass
+            
+            bot.close()
+            state = get_state()
+            state["user_fullname"] = name
+            save_state(state)
+            return jsonify({"success": True, "status": "COMPLETED", "message": f"Successfully connected as {name}", "user": name})
+        
+        bot.close()
+        return jsonify({"success": False, "message": "Credentials failed or System Busy. Try again."})
             
     except Exception as e:
         logger.error(f"Overall test error: {str(e)}")
         return jsonify({"success": False, "message": f"Login System Busy. Try again in 1 minute."})
+
+@app.route("/api/test/linkedin/otp", methods=["POST"])
+def api_linkedin_otp():
+    try:
+        data = request.json
+        otp = data.get("otp")
+        config = get_config()
+        
+        bot = LinkedInBot(config.get("linkedin_email"), config.get("linkedin_password"))
+        bot.setup_driver(headless=True)
+        
+        # This is a bit tricky with stateless backend, 
+        # but we'll re-trigger login and it should be at the OTP stage if session persists
+        # or we manually handle the submit
+        login_status = bot.login(otp_code=otp)
+        
+        if login_status:
+            bot.driver.get("https://www.linkedin.com/in/me/")
+            time.sleep(3)
+            name = bot.driver.find_element(By.TAG_NAME, "h1").text.strip().split("\n")[0]
+            bot.close()
+            state = get_state()
+            state["user_fullname"] = name
+            save_state(state)
+            return jsonify({"success": True, "message": f"Welcome, {name}!", "user": name})
+        
+        bot.close()
+        return jsonify({"success": False, "message": "OTP verification failed."})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)})
 
 @app.route("/api/certificate", methods=["POST"])
 def post_certificate():

@@ -75,37 +75,6 @@ class LinkedInBot:
             self.driver.get('https://www.linkedin.com/feed/')
             time.sleep(5)
             
-            # Check if we are already logged in via cookies/profile
-            if 'feed' in self.driver.current_url or 'mynetwork' in self.driver.current_url:
-                logger.info("Already logged in via persistent profile.")
-                return True
-            
-            # Navigate to login if not
-            self.driver.get('https://www.linkedin.com/login')
-            time.sleep(3)
-            
-            try:
-                email_field = self.wait.until(
-                    EC.presence_of_element_located((By.ID, 'username'))
-                )
-                email_field.clear()
-                email_field.send_keys(self.email)
-                
-                password_field = self.driver.find_element(By.ID, 'password')
-                password_field.clear()
-                password_field.send_keys(self.password)
-                
-                login_btn = self.driver.find_element(By.XPATH, '//button[@type="submit"]')
-                login_btn.click()
-                time.sleep(5)
-            except Exception as e:
-                logger.warning(f"Login elements not found or already logged in: {str(e)}")
-            
-            # Double check
-            if 'feed' in self.driver.current_url or 'mynetwork' in self.driver.current_url:
-                logger.info("Login successful!")
-                return True
-            else:
                 logger.warning("Login verification required. Current URL: " + self.driver.current_url)
                 # If we are stuck at a challenge/otp, we might need manual intervention
                 return False

@@ -400,6 +400,12 @@
                 <div id="connectPrompt">
                     <p style="font-size: 0.85rem; color: var(--text-dim); margin-bottom: 15px;">Verify your credentials and establish a secure session with LinkedIn.</p>
                     <button class="btn pulse" id="connectBtn" onclick="testConnection()">🚀 Connect & Continue</button>
+                    
+                    <div id="otpSection" style="display: none; margin-top: 20px; text-align: left;">
+                        <label style="font-size: 0.8rem; margin-bottom: 8px; display: block;">Enter 6-digit Code (from Mail)</label>
+                        <input type="text" id="otpCode" placeholder="123456" style="margin-bottom: 10px;">
+                        <button class="btn btn-outline" onclick="submitOTP()">✅ Submit Code</button>
+                    </div>
                 </div>
                 
                 <div id="testResult" style="font-size: 0.85rem; margin-top: 15px; text-align: center;"></div>
@@ -649,6 +655,7 @@
             const connCard = document.getElementById('connectionCard');
             const prompt = document.getElementById('connectPrompt');
             const profName = document.getElementById('profileName');
+            const otpSec = document.getElementById('otpSection');
 
             resArea.textContent = "⚙️ Establishing secure link... (approx. 15s)";
             resArea.style.color = "var(--accent)";
@@ -658,6 +665,15 @@
             try {
                 const res = await fetch(API + '/api/test/linkedin', { method: 'POST' });
                 const data = await res.json();
+                
+                if (data.status === "OTP_REQUIRED") {
+                    resArea.textContent = data.message;
+                    resArea.style.color = "var(--accent)";
+                    otpSec.style.display = "block";
+                    connectBtn.style.display = "none";
+                    return;
+                }
+
                 resArea.textContent = data.message;
                 
                 if (data.success) {
@@ -674,6 +690,30 @@
             } catch(e) { 
                 resArea.textContent = "Connection Error"; 
                 connectBtn.disabled = false;
+            }
+        }
+
+        async function submitOTP() {
+            const code = document.getElementById('otpCode').value;
+            const resArea = document.getElementById('testResult');
+            if(!code) return alert("Enter the code first");
+            
+            resArea.textContent = "🚀 Verifying code and linking account...";
+            try {
+                const res = await fetch(API + '/api/test/linkedin/otp', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ otp: code })
+                });
+                const data = await res.json();
+                if(data.success) {
+                    window.location.reload();
+                } else {
+                    resArea.textContent = data.message;
+                    resArea.style.color = "var(--error)";
+                }
+            } catch(e) {
+                resArea.textContent = "OTP Submit Error";
             }
         }
 
