@@ -34,21 +34,25 @@ class LinkedInBot:
         chrome_options.add_experimental_option('excludeSwitches', ['enable-automation'])
         chrome_options.add_experimental_option('useAutomationExtension', False)
         
-        # In Render (Linux), try to use system chrome
-        try:
-            if os.path.exists('/usr/bin/google-chrome'):
-                chrome_options.binary_location = '/usr/bin/google-chrome'
-            
-            # Try to use webdriver-manager but with a fallback
+        # Specialized setup for Render/Linux with Chromium
+        if os.path.exists('/usr/bin/chromium'):
+            chrome_options.binary_location = '/usr/bin/chromium'
+            # Use the system chromedriver
+            service = Service('/usr/bin/chromedriver')
             try:
-                service = Service(ChromeDriverManager().install())
                 self.driver = webdriver.Chrome(service=service, options=chrome_options)
             except Exception as e:
-                logger.warning(f"ChromeDriverManager failed: {str(e)}. Attempting default initialization.")
+                logger.error(f"Chromium init failed: {str(e)}")
+                # Fallback to default in case paths are different locally
                 self.driver = webdriver.Chrome(options=chrome_options)
-        except Exception as e:
-            logger.error(f"Failed to initialize Chrome: {str(e)}")
-            raise e
+        else:
+            # Local Windows/Mac development fallback
+            try:
+                from webdriver_manager.chrome import ChromeDriverManager
+                service = Service(ChromeDriverManager().install())
+                self.driver = webdriver.Chrome(service=service, options=chrome_options)
+            except:
+                self.driver = webdriver.Chrome(options=chrome_options)
 
         self.wait = WebDriverWait(self.driver, 20)
         self.driver.execute_cdp_cmd('Page.addScriptToEvaluateOnNewDocument', {
