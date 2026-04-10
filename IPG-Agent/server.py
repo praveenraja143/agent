@@ -4,7 +4,7 @@ import json
 import time
 import logging
 import random
-import requests as req
+import requests
 from datetime import datetime
 from bs4 import BeautifulSoup
 from modules.linkedin import LinkedInBot
@@ -407,8 +407,8 @@ def send_whatsapp():
         if not phone:
             return jsonify({"success": False, "message": "Phone number required"})
         
-        url = f"https://api.callmebot.com/whatsapp.php?phone={phone}&text={req.utils.quote(message)}&apikey="
-        resp = req.get(url, timeout=10)
+        url = f"https://api.callmebot.com/whatsapp.php?phone={phone}&text={requests.utils.quote(message)}&apikey="
+        resp = requests.get(url, timeout=10)
         return jsonify({"success": resp.status_code == 200})
     except Exception as e:
         return jsonify({"success": False, "message": str(e)})
