@@ -25,5 +25,5 @@ COPY . .
 # Create directory for profile
 RUN mkdir -p data/chrome_profile
 
-EXPOSE 10000
-CMD ["gunicorn", "--bind", "0.0.0.0:10000", "--timeout", "120", "--workers", "1", "--threads", "4", "server:app"]
+# Use the PORT environment variable provided by Render
+CMD gunicorn --bind 0.0.0.0:$PORT --timeout 120 --workers 1 --threads 4 server:app
