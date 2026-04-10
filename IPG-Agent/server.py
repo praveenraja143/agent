@@ -17,8 +17,12 @@ from sqlalchemy import create_engine, Column, String, Text, JSON
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 # Database Setup (Persistent storage for Render)
 DATABASE_URL = os.getenv("DATABASE_URL")
+from sqlalchemy.orm import declarative_base
 Base = declarative_base()
 
 class ConfigStore(Base):
@@ -37,9 +41,6 @@ if DATABASE_URL:
     except Exception as e:
         logger.error(f"DB Connection failed: {str(e)}")
         DATABASE_URL = None
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 app = Flask(__name__, template_folder='templates')
 app.secret_key = os.getenv("SECRET_KEY", "ipg-agent-secret-007")
