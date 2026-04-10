@@ -34,10 +34,9 @@ class IPGAgent:
             email=self.config['linkedin_email'],
             password=self.config['linkedin_password']
         )
-        self.ai = AIContentGenerator(
-            api_key=self.config['openrouter_api_key'],
-            provider=self.config.get('ai_provider', 'openrouter')
-        )
+        api_key = self.config.get('groq_api_key') or self.config.get('openrouter_api_key')
+        provider = self.config.get('ai_provider', 'openrouter')
+        self.ai = AIContentGenerator(api_key=api_key, provider=provider)
         self.hashtags = HashtagEngine()
         self.jobs = JobSearcher(
             skills=self.config['skills'],

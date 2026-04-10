@@ -32,7 +32,8 @@ def get_config():
     return {
         "linkedin_email": os.getenv("LINKEDIN_EMAIL", ""),
         "linkedin_password": os.getenv("LINKEDIN_PASSWORD", ""),
-        "openrouter_api_key": os.getenv("OPENROUTER_API_KEY", ""),
+        "openrouter_api_key": os.getenv("GROQ_API_KEY") or os.getenv("OPENROUTER_API_KEY", ""),
+        "ai_provider": os.getenv("AI_PROVIDER", "openrouter"),
         "whatsapp_phone": os.getenv("WHATSAPP_PHONE", ""),
         "skills": os.getenv("SKILLS", "Python,JavaScript").split(","),
         "locations": os.getenv("LOCATIONS", "Remote,India").split(","),
@@ -187,7 +188,7 @@ def post_certificate():
         if not email or not password:
             return jsonify({"success": False, "message": "LinkedIn credentials required"})
         
-        api_key = config.get("openrouter_api_key", "")
+        api_key = config.get("groq_api_key") or config.get("openrouter_api_key", "")
         provider = config.get("ai_provider", "openrouter")
         ai = AIContentGenerator(api_key, provider)
         hashtags_engine = HashtagEngine()
