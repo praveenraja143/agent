@@ -13,7 +13,7 @@ from modules.hashtag_engine import HashtagEngine
 from modules.scheduler import TaskScheduler
 from modules.resume_parser import ResumeParser
 import threading
-from sqlalchemy import create_all, create_engine, Column, String, Text, JSON
+from sqlalchemy import create_engine, Column, String, Text, JSON
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
