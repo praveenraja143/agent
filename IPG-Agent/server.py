@@ -170,20 +170,21 @@ def linkedin_test():
 @app.route("/api/certificate", methods=["POST"])
 def post_certificate():
     try:
-        from selenium import webdriver
-        from selenium.webdriver.common.by import By
-        from selenium.webdriver.support.ui import WebDriverWait
-        from selenium.webdriver.support import expected_conditions as EC
-        from selenium.webdriver.chrome.options import Options
-        from selenium.webdriver.common.keys import Keys
-        
-        data = request.json
+        # Check if it is a multi-part form for file uploads or JSON
+        if request.content_type and "multipart/form-data" in request.content_type:
+             data = request.form
+             files = request.files.getlist("images")
+        else:
+             data = request.json
+             files = []
+             
         config = get_config()
-        email = data.get("linkedin_email") or config.get("linkedin_email", "")
-        password = data.get("linkedin_password") or config.get("linkedin_password", "")
-        cert_name = data.get("cert_name", "Certificate")
-        issuing_org = data.get("issuing_org", "Organization")
-        skills = data.get("skills", [])
+        email = config.get("linkedin_email", "")
+        password = config.get("linkedin_password", "")
+        
+        cert_name = data.get("cert_name", "Professional Certification")
+        issuing_org = data.get("issuing_org", "Professional Organization")
+        skills = data.get("skills", "").split(",") if isinstance(data.get("skills"), str) else data.get("skills", [])
         
         if not email or not password:
             return jsonify({"success": False, "message": "LinkedIn credentials required"})
@@ -197,63 +198,50 @@ def post_certificate():
         hashtags = hashtags_engine.get_certificate_hashtags(cert_name, skills, issuing_org)
         full_post = f"{content}\n\n{hashtags}"
         
-        chrome_options = Options()
-        chrome_options.add_argument("--headless")
-        chrome_options.add_argument("--no-sandbox")
-        chrome_options.add_argument("--disable-dev-shm-usage")
-        chrome_options.add_argument("--disable-blink-features=AutomationControlled")
-        chrome_options.add_argument("--user-agent=Mozilla/5.0")
+        # Process uploaded images
+        temp_paths = []
+        if files:
+            os.makedirs("data/uploads", exist_ok=True)
+            for file in files:
+                if file.filename:
+                    path = os.path.join("data/uploads", file.filename)
+                    file.save(path)
+                    temp_paths.append(path)
         
-        driver = webdriver.Chrome(options=chrome_options)
-        wait = WebDriverWait(driver, 20)
+        bot = LinkedInBot(email, password)
+        # Use headless if running on Render or if requested
+        bot.setup_driver(headless=True if os.getenv("RENDER") else False)
         
-        driver.get("https://www.linkedin.com/login")
-        time.sleep(2)
-        wait.until(EC.presence_of_element_located((By.ID, "username"))).send_keys(email)
-        driver.find_element(By.ID, "password").send_keys(password)
-        driver.find_element(By.XPATH, "//button[@type='submit']").click()
-        time.sleep(5)
+        if not bot.login():
+            bot.close()
+            return jsonify({"success": False, "message": "LinkedIn login failed"})
+            
+        if temp_paths:
+            success = bot.post_with_images(full_post, temp_paths)
+        else:
+            success = bot.post_text(full_post)
+            
+        bot.close()
         
-        if "feed" not in driver.current_url:
-            driver.quit()
-            return jsonify({"success": False, "message": "Login failed"})
-        
-        driver.get("https://www.linkedin.com/feed/")
-        time.sleep(3)
-        
-        wait.until(EC.element_to_be_clickable((By.XPATH, "//button[contains(@aria-label, 'Start a post')]"))).click()
-        time.sleep(2)
-        
-        text_area = wait.until(EC.presence_of_element_located((By.XPATH, "//div[@role='textbox']")))
-        text_area.click()
-        time.sleep(1)
-        
-        for line in full_post.split("\n"):
-            text_area.send_keys(line)
-            text_area.send_keys(Keys.SHIFT + Keys.ENTER)
-            time.sleep(0.2)
-        
-        time.sleep(2)
-        driver.find_element(By.XPATH, "//button[@type='submit' and contains(@class, 'share-actions__primary-action')]").click()
-        time.sleep(3)
-        driver.quit()
-        
-        state = get_state()
-        state["cert_count"] = state.get("cert_count", 0) + 1
-        if skills:
-            existing = state.get("skills", [])
-            for s in skills:
-                if s not in existing:
-                    existing.append(s)
-            state["skills"] = existing
-        state["last_certificate"] = datetime.now().isoformat()
-        save_state(state)
-        
-        return jsonify({"success": True, "message": "Certificate posted", "content": full_post, "skills_updated": state.get("skills", [])})
-        
+        # Cleanup
+        for p in temp_paths:
+            try: os.remove(p)
+            except: pass
+            
+        if success:
+            state = get_state()
+            state["cert_count"] = state.get("cert_count", 0) + 1
+            if skills:
+                existing = state.get("skills", [])
+                for s in skills:
+                    if s not in existing: existing.append(s)
+                state["skills"] = existing
+            save_state(state)
+            return jsonify({"success": True, "message": "Achievement posted successfully!"})
+        else:
+            return jsonify({"success": False, "message": "Failed to publish achievement to LinkedIn"})
+            
     except Exception as e:
-        if "driver" in locals():
-            driver.quit()
         return jsonify({"success": False, "message": str(e)})
 
 @app.route("/api/jobs/search", methods=["POST"])

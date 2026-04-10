@@ -309,6 +309,11 @@
                     <label>Issuing Organization</label>
                     <input type="text" id="certOrg" placeholder="e.g. Coursera, Google">
                 </div>
+                <div class="form-group">
+                    <label>Upload Images / Certificates (Multiple ok)</label>
+                    <input type="file" id="certImages" multiple accept="image/*" style="padding: 10px; font-size: 0.8rem; height: auto;">
+                    <div id="imagePreview" style="margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap;"></div>
+                </div>
                 <button class="btn" style="background: linear-gradient(135deg, #7b1fa2, #4527a0);" onclick="postCertificate()">
                     🖼️ Post Achievement
                 </button>
@@ -494,19 +499,35 @@
         async function postCertificate() {
             const name = document.getElementById('certName').value;
             const org = document.getElementById('certOrg').value;
+            const fileInput = document.getElementById('certImages');
+            
             if(!name || !org) { showToast("Enter name and org!", true); return; }
             
             showToast("Handling achievement...");
+            
+            const formData = new FormData();
+            formData.append('cert_name', name);
+            formData.append('issuing_org', org);
+            
+            for(let i=0; i < fileInput.files.length; i++) {
+                formData.append('images', fileInput.files[i]);
+            }
+            
             try {
                 const res = await fetch(API + '/api/certificate', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ cert_name: name, issuing_org: org })
+                    body: formData
                 });
                 const data = await res.json();
-                if(data.success) { showToast("🎓 Certificate Posted!"); loadState(); }
+                if(data.success) { 
+                    showToast("🎓 Achievement Published!"); 
+                    fileInput.value = "";
+                    document.getElementById('certName').value = "";
+                    document.getElementById('certOrg').value = "";
+                    loadState(); 
+                }
                 else { showToast(data.message, true); }
-            } catch(e) { showToast("Failed", true); }
+            } catch(e) { showToast("Failed to upload", true); }
         }
 
         async function searchJobs() {
@@ -586,6 +607,25 @@
                 navigator.serviceWorker.register('/sw.js');
             });
         }
+
+        document.getElementById('certImages').addEventListener('change', function(e) {
+            const preview = document.getElementById('imagePreview');
+            preview.innerHTML = '';
+            for(let i=0; i < this.files.length; i++) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const img = document.createElement('img');
+                    img.src = e.target.result;
+                    img.style.width = '60px';
+                    img.style.height = '60px';
+                    img.style.objectFit = 'cover';
+                    img.style.borderRadius = '8px';
+                    img.style.border = '1px solid var(--glass-border)';
+                    preview.appendChild(img);
+                }
+                reader.readAsDataURL(this.files[i]);
+            }
+        });
     </script>
 </body>
 </html>

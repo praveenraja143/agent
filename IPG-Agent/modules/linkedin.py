@@ -124,7 +124,10 @@ class LinkedInBot:
             logger.error(f"Post error: {str(e)}")
             return False
 
-    def post_with_image(self, content, image_path):
+    def post_with_images(self, content, image_paths):
+        if isinstance(image_paths, str):
+            image_paths = [image_paths]
+            
         try:
             self.driver.get('https://www.linkedin.com/feed/')
             time.sleep(3)
@@ -152,24 +155,37 @@ class LinkedInBot:
             media_btn.click()
             time.sleep(1)
             
-            import os
-            file_input = self.driver.find_element(By.XPATH, '//input[@type="file"]')
-            file_input.send_keys(os.path.abspath(image_path))
-            time.sleep(3)
+            file_input = self.wait.until(
+                EC.presence_of_element_located((By.XPATH, '//input[@type="file"]'))
+            )
+            
+            # Convert paths to absolute
+            abs_paths = [os.path.abspath(p) for p in image_paths]
+            # Select multiple files by joining with newline
+            file_input.send_keys("\n".join(abs_paths))
+            time.sleep(5) # Wait for images to process
+            
+            # Click "Next" if it appears (LinkedIn sometimes has a multi-image preview)
+            try:
+                next_btn = self.driver.find_element(By.XPATH, "//button[span[text()='Next' or text()='Done']]")
+                next_btn.click()
+                time.sleep(2)
+            except:
+                pass
             
             time.sleep(2)
             
-            post_btn = self.driver.find_element(
-                By.XPATH, '//button[@type="submit" and contains(@class, "share-actions__primary-action")]'
+            post_btn = self.wait.until(
+                EC.element_to_be_clickable((By.XPATH, '//button[@type="submit" and contains(@class, "share-actions__primary-action")]'))
             )
             post_btn.click()
-            time.sleep(3)
+            time.sleep(4)
             
-            logger.info("Post with image published successfully!")
+            logger.info(f"Post with {len(image_paths)} image(s) published successfully!")
             return True
             
         except Exception as e:
-            logger.error(f"Post with image error: {str(e)}")
+            logger.error(f"Post with images error: {str(e)}")
             return False
 
     def engage_with_feed(self, count=5):
