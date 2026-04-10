@@ -180,8 +180,11 @@ def api_test_linkedin():
         email = config.get("linkedin_email")
         password = config.get("linkedin_password")
         
+        # Log for debugging (remove in production if sensitive)
+        logger.info(f"Direct post attempt with email: {email}")
+        
         if not email or not password:
-            return jsonify({"success": False, "message": "First, enter your Login details in the boxes above."})
+            return jsonify({"success": False, "message": "LinkedIn credentials missing. Please go to Settings and hit 'Sync Config' first."})
             
         # Clean up any old bot for this user to save memory
         if email in global_bots:
