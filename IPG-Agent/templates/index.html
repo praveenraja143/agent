@@ -278,6 +278,32 @@
             <div class="section-header">
                 <h2 class="section-title">🚀 Quick Connect</h2>
             </div>
+
+            <!-- Account Connection -->
+            <div class="card" style="border-color: var(--secondary); margin-bottom: 20px;">
+                <h3 style="margin-bottom: 15px; font-size: 1.1rem; display: flex; align-items: center; gap: 10px;">
+                    🔗 Account Link
+                </h3>
+                <div id="connectionCard" style="display: none; margin-bottom: 15px; background: rgba(0, 242, 254, 0.05); border-radius: 16px; padding: 15px; border: 1px dashed var(--secondary);">
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <div style="width: 50px; height: 50px; background: linear-gradient(135deg, var(--primary), var(--secondary)); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; color: white;">👤</div>
+                        <div>
+                            <h3 id="profileName" style="font-size: 1.1rem; margin-bottom: 2px;">LinkedIn User</h3>
+                            <p style="font-size: 0.75rem; color: var(--success); font-weight: 500;">● SYSTEM CONNECTED</p>
+                        </div>
+                    </div>
+                </div>
+                <div id="connectPrompt">
+                    <button class="btn pulse" id="connectBtn" onclick="testConnection()">🚀 Connect & Continue</button>
+                    <div id="otpSection" style="display: none; margin-top: 15px; text-align: left;">
+                        <label style="font-size: 0.8rem; margin-bottom: 8px; display: block;">Enter 6-digit Code</label>
+                        <input type="text" id="otpCode" placeholder="123456" style="margin-bottom: 10px;">
+                        <button class="btn btn-outline" onclick="submitOTP()">✅ Submit Code</button>
+                    </div>
+                </div>
+                <div id="testResult" style="font-size: 0.85rem; margin-top: 10px; text-align: center;"></div>
+            </div>
+
             <div class="card">
                 <div class="form-group quick-post-box">
                     <label>What do you want to share today?</label>
@@ -374,35 +400,6 @@
                 <button class="btn btn-success" onclick="saveConfig()">💾 Sync Config</button>
             </div>
             
-            <!-- Account Connection -->
-            <div class="card" style="border-color: var(--secondary); margin-top: 30px;">
-                <h3 style="margin-bottom: 20px; font-size: 1.1rem; display: flex; align-items: center; gap: 10px;">
-                    🔗 Account Link
-                </h3>
-                
-                <div id="connectionCard" style="display: none; margin-bottom: 20px; background: rgba(0, 242, 254, 0.05); border-radius: 16px; padding: 15px; border: 1px dashed var(--secondary);">
-                    <div style="display: flex; align-items: center; gap: 15px;">
-                        <div style="width: 50px; height: 50px; background: linear-gradient(135deg, var(--primary), var(--secondary)); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; color: white;">👤</div>
-                        <div>
-                            <h3 id="profileName" style="font-size: 1.1rem; margin-bottom: 2px;">LinkedIn User</h3>
-                            <p style="font-size: 0.75rem; color: var(--success); font-weight: 500;">● SYSTEM CONNECTED</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div id="connectPrompt">
-                    <p style="font-size: 0.85rem; color: var(--text-dim); margin-bottom: 15px;">Verify your credentials and establish a secure session with LinkedIn.</p>
-                    <button class="btn pulse" id="connectBtn" onclick="testConnection()">🚀 Connect & Continue</button>
-                    
-                    <div id="otpSection" style="display: none; margin-top: 20px; text-align: left;">
-                        <label style="font-size: 0.8rem; margin-bottom: 8px; display: block;">Enter 6-digit Code (from Mail)</label>
-                        <input type="text" id="otpCode" placeholder="123456" style="margin-bottom: 10px;">
-                        <button class="btn btn-outline" onclick="submitOTP()">✅ Submit Code</button>
-                    </div>
-                </div>
-                
-                <div id="testResult" style="font-size: 0.85rem; margin-top: 15px; text-align: center;"></div>
-            </div>
         </section>
 
     </div>
