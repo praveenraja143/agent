@@ -212,14 +212,18 @@ def api_test_linkedin():
                 
                 return jsonify({"success": True, "message": f"Successfully connected as {name}", "user": name})
             except Exception as e:
-                bot.close()
-                return jsonify({"success": True, "message": "Connected successfully!", "user": "LinkedIn User"})
+                logger.error(f"Profile discovery error: {str(e)}")
+                if 'bot' in locals() and bot.driver:
+                    bot.close()
+                return jsonify({"success": True, "message": "Connected successfully! (Profile discovery busy)", "user": "LinkedIn User"})
         else:
-            bot.close()
-            return jsonify({"success": False, "message": "Connection failed. Please check credentials or security."})
+            if 'bot' in locals() and bot.driver:
+                bot.close()
+            return jsonify({"success": False, "message": "Connection failed. Please check credentials."})
             
     except Exception as e:
-        return jsonify({"success": False, "message": f"Driver Error: {str(e)}"})
+        logger.error(f"Overall test error: {str(e)}")
+        return jsonify({"success": False, "message": f"Login System Busy. Try again in 1 minute."})
 
 @app.route("/api/certificate", methods=["POST"])
 def post_certificate():

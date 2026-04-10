@@ -23,10 +23,13 @@ class LinkedInBot:
     def setup_driver(self, headless=False):
         chrome_options = Options()
         if headless:
-            chrome_options.add_argument('--headless')
+            chrome_options.add_argument('--headless=new') # Use the new headless mode
             chrome_options.add_argument('--no-sandbox')
             chrome_options.add_argument('--disable-dev-shm-usage')
             chrome_options.add_argument('--disable-gpu')
+            chrome_options.add_argument('--disable-setuid-sandbox')
+            chrome_options.add_argument('--remote-debugging-port=9222')
+            chrome_options.add_argument('--single-process')
         
         chrome_options.add_argument(f'--user-data-dir={self.user_data_dir}')
         chrome_options.add_argument('--disable-blink-features=AutomationControlled')
@@ -38,12 +41,16 @@ class LinkedInBot:
         if os.path.exists('/usr/bin/chromium'):
             chrome_options.binary_location = '/usr/bin/chromium'
             # Use the system chromedriver
-            service = Service('/usr/bin/chromedriver')
+            if os.path.exists('/usr/bin/chromedriver'):
+                service = Service('/usr/bin/chromedriver')
+            else:
+                service = Service() # Let it find in path
+            
             try:
                 self.driver = webdriver.Chrome(service=service, options=chrome_options)
             except Exception as e:
                 logger.error(f"Chromium init failed: {str(e)}")
-                # Fallback to default in case paths are different locally
+                # One last attempt without service
                 self.driver = webdriver.Chrome(options=chrome_options)
         else:
             # Local Windows/Mac development fallback
