@@ -11,7 +11,7 @@ class AIContentGenerator:
         
         if self.provider == "groq":
             self.base_url = "https://api.groq.com/openai/v1/chat/completions"
-            self.model = "llama-3.1-70b-versatile" # High quality free model on Groq
+            self.model = "llama-3.3-70b-versatile" # Updated to newest supported model
             self.headers = {
                 "Authorization": f"Bearer {self.api_key}",
                 "Content-Type": "application/json",
