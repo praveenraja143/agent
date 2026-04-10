@@ -50,6 +50,9 @@ def index():
 CONFIG_FILE = "config.json"
 STATE_FILE = "data/state.json"
 
+# Global registry for pending login sessions
+global_bots = {}
+
 def get_config():
     if os.path.exists(CONFIG_FILE):
         with open(CONFIG_FILE, 'r') as f:
@@ -171,6 +174,7 @@ def post_to_linkedin():
 
 @app.route("/api/test/linkedin", methods=["POST"])
 def api_test_linkedin():
+    global global_bots
     try:
         config = get_config()
         email = config.get("linkedin_email")
@@ -179,13 +183,17 @@ def api_test_linkedin():
         if not email or not password:
             return jsonify({"success": False, "message": "First, enter your Login details in the boxes above."})
             
+        # Clean up any old bot for this user to save memory
+        if email in global_bots:
+            try: global_bots[email].close()
+            except: pass
+            
         bot = LinkedInBot(email, password)
         bot.setup_driver(headless=True)
         login_status = bot.login()
         
         if login_status == "OTP_REQUIRED":
-            # Keep the driver open for 2 mins to wait for OTP
-            session['pending_bot'] = True # Marker for UI
+            global_bots[email] = bot
             return jsonify({"success": True, "status": "OTP_REQUIRED", "message": "LinkedIn sent a code to your Mail. Enter it below."})
             
         if login_status == "SUCCESS" or login_status is True:
@@ -193,7 +201,7 @@ def api_test_linkedin():
             name = "LinkedIn User"
             try:
                 bot.driver.get("https://www.linkedin.com/in/me/")
-                time.sleep(4)
+                time.sleep(3)
                 name_el = bot.driver.find_element(By.TAG_NAME, "h1")
                 name = name_el.text.strip().split("\n")[0]
             except: pass
@@ -209,27 +217,33 @@ def api_test_linkedin():
             
     except Exception as e:
         logger.error(f"Overall test error: {str(e)}")
-        return jsonify({"success": False, "message": f"Login System Busy. Try again in 1 minute."})
+        return jsonify({"success": False, "message": f"Connection Busy: {str(e)}"})
 
 @app.route("/api/test/linkedin/otp", methods=["POST"])
 def api_linkedin_otp():
+    global global_bots
     try:
         data = request.json
         otp = data.get("otp")
         config = get_config()
+        email = config.get("linkedin_email")
         
-        bot = LinkedInBot(config.get("linkedin_email"), config.get("linkedin_password"))
-        bot.setup_driver(headless=True)
+        if email not in global_bots:
+            return jsonify({"success": False, "message": "Session expired or browser closed. Please try Connecting again."})
         
-        # This is a bit tricky with stateless backend, 
-        # but we'll re-trigger login and it should be at the OTP stage if session persists
-        # or we manually handle the submit
-        login_status = bot.login(otp_code=otp)
+        # Pull the existing bot that is already waiting on the OTP screen
+        bot = global_bots.pop(email)
+        success = bot.login(otp_code=otp)
         
-        if login_status:
-            bot.driver.get("https://www.linkedin.com/in/me/")
-            time.sleep(3)
-            name = bot.driver.find_element(By.TAG_NAME, "h1").text.strip().split("\n")[0]
+        if success:
+            try:
+                bot.driver.get("https://www.linkedin.com/in/me/")
+                time.sleep(3)
+                name_el = bot.driver.find_element(By.TAG_NAME, "h1")
+                name = name_el.text.strip().split("\n")[0]
+            except:
+                name = "LinkedIn User"
+
             bot.close()
             state = get_state()
             state["user_fullname"] = name
@@ -237,9 +251,9 @@ def api_linkedin_otp():
             return jsonify({"success": True, "message": f"Welcome, {name}!", "user": name})
         
         bot.close()
-        return jsonify({"success": False, "message": "OTP verification failed."})
+        return jsonify({"success": False, "message": "OTP verification failed. Check your code."})
     except Exception as e:
-        return jsonify({"success": False, "message": str(e)})
+        return jsonify({"success": False, "message": f"Error: {str(e)}"})
 
 @app.route("/api/certificate", methods=["POST"])
 def post_certificate():
