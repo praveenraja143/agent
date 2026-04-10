@@ -1,13 +1,16 @@
 const CACHE_NAME = 'ipg-agent-v1';
 const urlsToCache = [
   '/',
-  '/static/manifest.json'
+  '/manifest.json'
 ];
 
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then(cache => cache.addAll(urlsToCache))
+      .then(cache => {
+          // Use individual add calls or a safer wrapper to avoid failing the whole install
+          return Promise.allSettled(urlsToCache.map(url => cache.add(url)));
+      })
   );
 });
 
