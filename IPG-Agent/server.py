@@ -11,6 +11,7 @@ from modules.linkedin import LinkedInBot
 from modules.ai_content import AIContentGenerator
 from modules.hashtag_engine import HashtagEngine
 from modules.scheduler import TaskScheduler
+from modules.resume_parser import ResumeParser
 import threading
 
 logging.basicConfig(level=logging.INFO)
@@ -281,6 +282,48 @@ def search_jobs():
         
     except Exception as e:
         return jsonify({"jobs": [], "total": 0, "error": str(e)})
+
+@app.route("/api/resume/upload", methods=["POST"])
+def upload_resume():
+    try:
+        if 'resume' not in request.files:
+            return jsonify({"success": False, "message": "No file part"})
+        
+        file = request.files['resume']
+        if file.filename == '':
+            return jsonify({"success": False, "message": "No selected file"})
+        
+        os.makedirs("data/resumes", exist_ok=True)
+        path = os.path.join("data/resumes", file.filename)
+        file.save(path)
+        
+        parser = ResumeParser()
+        skills = parser.parse_file(path)
+        
+        if skills:
+            state = get_state()
+            existing = state.get("skills", [])
+            state["skills"], added = parser.merge_skills(existing, skills)
+            save_state(state)
+            
+            # Trigger a fresh job search with new skills
+            threading.Thread(target=run_job_search_bg, args=(state["skills"],)).start()
+            
+            return jsonify({
+                "success": True, 
+                "skills": state["skills"], 
+                "added": added,
+                "message": f"Extracted {len(added)} new skills from resume!"
+            })
+        else:
+            return jsonify({"success": False, "message": "No skills could be extracted from this resume."})
+            
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)})
+
+def run_job_search_bg(skills):
+    # Simulated background search that might send WhatsApp later
+    logger.info(f"Background job search triggered for skills: {skills}")
 
 @app.route("/api/whatsapp/send", methods=["POST"])
 def send_whatsapp():

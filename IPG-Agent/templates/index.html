@@ -323,12 +323,27 @@
         <!-- Jobs -->
         <section id="job-section">
             <div class="section-header">
-                <h2 class="section-title">💼 Matching Jobs</h2>
+                <h2 class="section-title">💼 Job Navigator</h2>
+            </div>
+            
+            <!-- Resume Section -->
+            <div class="card" style="border-left: 4px solid var(--secondary);">
+                <h3 style="font-size: 1rem; margin-bottom: 12px;">📄 Smart Resume Sync</h3>
+                <p style="font-size: 0.8rem; color: var(--text-dim); margin-bottom: 15px;">Upload your resume (PDF/DOCX) to automatically find jobs matching your skills.</p>
+                <div class="form-group">
+                    <input type="file" id="resumeFile" accept=".pdf,.docx" style="padding: 10px; font-size: 0.8rem; height: auto;">
+                </div>
+                <button class="btn btn-outline" onclick="uploadResume()">🛰️ Extract Skills & Sync</button>
+                <div id="skillBadges" style="margin-top: 15px; display: flex; gap: 6px; flex-wrap: wrap;"></div>
+            </div>
+
+            <div class="section-header" style="margin-top: 20px;">
+                <h3 class="section-title" style="font-size: 1rem;">🔍 Live Matches</h3>
                 <button class="btn btn-outline" style="width: auto; padding: 8px 16px; font-size: 0.8rem;" onclick="searchJobs()">Refresh</button>
             </div>
             <div id="jobsList">
                 <div class="card" style="text-align: center; color: var(--text-dim);">
-                    <p style="font-size: 0.9rem;">Click 'Refresh' to hunt for jobs...</p>
+                    <p style="font-size: 0.9rem;">Sync resume or click 'Refresh' to find jobs...</p>
                 </div>
             </div>
         </section>
@@ -434,8 +449,43 @@
                 const data = await res.json();
                 document.getElementById('postCount').textContent = data.post_count || 0;
                 document.getElementById('certCount').textContent = data.cert_count || 0;
-                document.getElementById('skillCount').textContent = (data.skills || []).length;
+                const skills = data.skills || [];
+                document.getElementById('skillCount').textContent = skills.length;
+                
+                // Render skills as badges in Job section
+                const badgeContainer = document.getElementById('skillBadges');
+                if(badgeContainer) {
+                    badgeContainer.innerHTML = skills.map(s => `
+                        <span style="background: rgba(0, 242, 254, 0.1); color: var(--secondary); padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; border: 1px solid rgba(0, 242, 254, 0.2);">
+                            ${s}
+                        </span>
+                    `).join('');
+                }
             } catch(e) {}
+        }
+
+        async function uploadResume() {
+            const fileInput = document.getElementById('resumeFile');
+            if(fileInput.files.length === 0) { showToast("Select a resume first!", true); return; }
+            
+            showToast("Parsing resume...");
+            const formData = new FormData();
+            formData.append('resume', fileInput.files[0]);
+            
+            try {
+                const res = await fetch(API + '/api/resume/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+                if(data.success) {
+                    showToast(data.message);
+                    loadState();
+                    searchJobs(); // Auto refresh jobs
+                } else {
+                    showToast(data.message, true);
+                }
+            } catch(e) { showToast("Upload failed", true); }
         }
 
         async function generateAndPreview() {
@@ -532,13 +582,17 @@
 
         async function searchJobs() {
             const list = document.getElementById('jobsList');
-            list.innerHTML = '<div class="card" style="text-align: center;"><div class="loader" style="display:inline-block"></div><p style="margin-top:10px">Hunting for jobs...</p></div>';
+            const stateRes = await fetch(API + '/api/state');
+            const state = await stateRes.json();
+            const skills = state.skills || ["Python", "JavaScript"];
+
+            list.innerHTML = '<div class="card" style="text-align: center;"><div class="loader" style="display:inline-block"></div><p style="margin-top:10px">Hunting for jobs based on your resume...</p></div>';
             
             try {
                 const res = await fetch(API + '/api/jobs/search', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ skills: ["Python", "JavaScript"] }) // In real usage, use state skills
+                    body: JSON.stringify({ skills: skills })
                 });
                 const data = await res.json();
                 if(data.jobs && data.jobs.length > 0) {
@@ -554,7 +608,7 @@
                         </div>
                     `).join('');
                 } else {
-                    list.innerHTML = '<div class="card" style="text-align: center;">No new matches found.</div>';
+                    list.innerHTML = `<div class="card" style="text-align: center;">No new matches found for ${skills.slice(0,3).join(', ')}.</div>`;
                 }
             } catch(e) { showToast("Search failed", true); }
         }
