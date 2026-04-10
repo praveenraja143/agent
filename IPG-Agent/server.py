@@ -43,7 +43,9 @@ if DATABASE_URL:
         DATABASE_URL = None
 
 app = Flask(__name__, template_folder='templates')
-app.secret_key = os.getenv("SECRET_KEY", "ipg-agent-secret-007")
+app.secret_key = os.getenv("SECRET_KEY", "ipg-agent-stable-key-007")
+app.config['SESSION_PERMANENT'] = True
+app.config['PERMANENT_SESSION_LIFETIME'] = 604800 # 7 days
 
 @app.before_request
 def check_auth():
