@@ -141,32 +141,36 @@ def post_to_linkedin():
         return jsonify({"success": False, "message": "Error: " + str(e)})
 
 @app.route("/api/linkedin/test", methods=["POST"])
-def linkedin_test():
-    config = get_config()
-    email = config.get("linkedin_email", "")
-    password = config.get("linkedin_password", "")
-    
-    if not email or not password:
-        return jsonify({"success": False, "message": "LinkedIn email and password not configured."})
-        
+def test_linkedin():
     try:
+        config = get_config()
+        email = config.get("linkedin_email")
+        password = config.get("linkedin_password")
+        
+        if not email or not password:
+            return jsonify({"success": False, "message": "LinkedIn email and password not configured."})
+            
         bot = LinkedInBot(email, password)
         bot.setup_driver(headless=True)
         
         if bot.login():
-            bot.close()
-            return jsonify({"success": True, "message": "✅ Verification Successful! LinkedIn account is connected properly."})
-        
-        current_url = bot.driver.current_url
-        bot.close()
-        
-        if "checkpoint" in current_url or "challenge" in current_url:
-            return jsonify({"success": False, "message": "⚠️ LinkedIn blocked the login (Security/OTP/Captcha request). Please run 'python verify_login.py' to login manually once."})
+            # Try to get profile name
+            try:
+                bot.driver.get("https://www.linkedin.com/settings/user-details")
+                time.sleep(2)
+                name_element = bot.driver.find_element(By.XPATH, "//h1")
+                name = name_element.text
+                bot.close()
+                return jsonify({"success": True, "message": f"Successfully connected as {name}", "user": name})
+            except:
+                bot.close()
+                return jsonify({"success": True, "message": "Connected successfully!", "user": "LinkedIn User"})
         else:
-            return jsonify({"success": False, "message": "❌ Login Failed! Incorrect Email/Password."})
+            bot.close()
+            return jsonify({"success": False, "message": "Connection failed. Please run verify_login.py locally or check credentials."})
             
     except Exception as e:
-        return jsonify({"success": False, "message": f"Error: {str(e)}"})
+        return jsonify({"success": False, "message": str(e)})
 
 @app.route("/api/certificate", methods=["POST"])
 def post_certificate():
