@@ -5,26 +5,14 @@ import logging
 logger = logging.getLogger(__name__)
 
 class AIContentGenerator:
-    def __init__(self, api_key, provider="openrouter"):
+    def __init__(self, api_key, provider="groq"):
         self.api_key = api_key
-        self.provider = provider.lower()
-        
-        if self.provider == "groq":
-            self.base_url = "https://api.groq.com/openai/v1/chat/completions"
-            self.model = "llama-3.3-70b-versatile" # Updated to newest supported model
-            self.headers = {
-                "Authorization": f"Bearer {self.api_key}",
-                "Content-Type": "application/json",
-            }
-        else:
-            self.base_url = "https://openrouter.ai/api/v1/chat/completions"
-            self.model = "qwen/qwen-2.5-coder-32b-instruct"
-            self.headers = {
-                "Authorization": f"Bearer {self.api_key}",
-                "Content-Type": "application/json",
-                "HTTP-Referer": "https://ipg-agent.local",
-                "X-Title": "IPG Agent",
-            }
+        self.base_url = "https://api.groq.com/openai/v1/chat/completions"
+        self.model = "llama-3.3-70b-versatile"
+        self.headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+        }
 
     def generate_daily_post(self, skills, post_type="general"):
         prompts = {
