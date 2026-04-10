@@ -58,7 +58,7 @@ def get_config():
         "linkedin_email": os.getenv("LINKEDIN_EMAIL", ""),
         "linkedin_password": os.getenv("LINKEDIN_PASSWORD", ""),
         "openrouter_api_key": os.getenv("GROQ_API_KEY") or os.getenv("OPENROUTER_API_KEY", ""),
-        "ai_provider": os.getenv("AI_PROVIDER", "openrouter"),
+        "ai_provider": os.getenv("AI_PROVIDER", "groq"),
         "whatsapp_phone": os.getenv("WHATSAPP_PHONE", ""),
         "skills": os.getenv("SKILLS", "Python,JavaScript").split(","),
         "locations": os.getenv("LOCATIONS", "Remote,India").split(","),
