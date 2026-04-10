@@ -277,6 +277,7 @@
         <section id="post-section">
             <div class="section-header">
                 <h2 class="section-title">🚀 Quick Connect</h2>
+                <div id="globalStatus" style="font-size: 0.75rem; color: var(--secondary); font-weight: bold; background: rgba(0,242,254,0.1); padding: 4px 12px; border-radius: 20px;">System Ready</div>
             </div>
 
             <!-- Account Connection -->
@@ -433,6 +434,27 @@
         async function init() {
             await loadState();
             await loadConfig();
+            startStatusPolling();
+        }
+
+        function startStatusPolling() {
+            setInterval(async () => {
+                try {
+                    const res = await fetch(API + '/api/status');
+                    const data = await res.json();
+                    const statusEl = document.getElementById('globalStatus');
+                    if (data.status) {
+                        statusEl.innerText = data.status;
+                        if(data.status.includes("Error") || data.status.includes("Failed")) {
+                            statusEl.style.color = "var(--danger)";
+                        } else if(data.status !== "Ready" && data.status !== "System Ready") {
+                            statusEl.style.color = "var(--secondary)";
+                        } else {
+                            statusEl.style.color = "var(--success)";
+                        }
+                    }
+                } catch(e) {}
+            }, 2000);
         }
 
         function showTab(tab) {

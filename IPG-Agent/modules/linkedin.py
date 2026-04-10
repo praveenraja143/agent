@@ -113,15 +113,37 @@ class LinkedInBot:
             logger.error(f"Login error: {str(e)}")
             return "FAILED"
 
-    def post_text(self, content):
+    def post_text(self, content, status_callback=None):
+        def update_status(msg):
+            logger.info(msg)
+            if status_callback: status_callback(msg)
+
         try:
+            update_status("Navigating to Feed...")
             self.driver.get('https://www.linkedin.com/feed/')
-            time.sleep(3)
+            time.sleep(5)
             
-            start_post = self.wait.until(
-                EC.element_to_be_clickable((By.XPATH, '//button[contains(@aria-label, "Start a post")]'))
-            )
+            update_status("Looking for 'Start a post' button...")
+            start_post_selectors = [
+                '//button[contains(@aria-label, "Start a post")]',
+                '//button[contains(@class, "share-box-feed-entry__trigger")]',
+                '//button//span[text()="Start a post"]/..'
+            ]
+            
+            start_post = None
+            for selector in start_post_selectors:
+                try:
+                    start_post = self.wait.until(EC.element_to_be_clickable((By.XPATH, selector)))
+                    if start_post: break
+                except: continue
+                
+            if not start_post:
+                update_status("Error: 'Start a post' button not found.")
+                self.driver.save_screenshot("data/last_error.png")
+                return False
+
             start_post.click()
+            update_status("Editor opened. Locating textbox...")
             time.sleep(2)
             
             text_area = self.wait.until(
@@ -130,24 +152,44 @@ class LinkedInBot:
             text_area.click()
             time.sleep(1)
             
-            for line in content.split('\n'):
-                text_area.send_keys(line)
-                text_area.send_keys(Keys.SHIFT + Keys.ENTER)
-                time.sleep(0.3)
-            
+            update_status("Entering post content...")
+            text_area.send_keys(content)
             time.sleep(2)
             
-            post_btn = self.driver.find_element(
-                By.XPATH, '//button[@type="submit" and contains(@class, "share-actions__primary-action")]'
-            )
-            post_btn.click()
-            time.sleep(3)
+            update_status("Locating final Submit button...")
+            post_btn_selectors = [
+                 '//button[contains(@class, "share-actions__primary-action")]',
+                 '//button[@type="submit" and contains(@class, "share-actions__primary-action")]',
+                 '//button//span[text()="Post"]/..',
+                 '//button[contains(@class, "editor-submit-button")]'
+            ]
             
-            logger.info("Post published successfully!")
-            return True
-            
+            post_btn = None
+            for selector in post_btn_selectors:
+                try:
+                    btns = self.driver.find_elements(By.XPATH, selector)
+                    for b in btns:
+                        if b.is_displayed() and b.is_enabled():
+                            post_btn = b
+                            break
+                    if post_btn: break
+                except: continue
+
+            if post_btn:
+                update_status("Publishing post...")
+                post_btn.click()
+                time.sleep(5)
+                update_status("Post published successfully!")
+                return True
+            else:
+                update_status("Error: 'Post' button not found.")
+                self.driver.save_screenshot("data/last_error.png")
+                return False
+                
         except Exception as e:
-            logger.error(f"Post error: {str(e)}")
+            update_status(f"Execution Error: {str(e)}")
+            try: self.driver.save_screenshot("data/last_error.png")
+            except: pass
             return False
 
     def post_with_images(self, content, image_paths):

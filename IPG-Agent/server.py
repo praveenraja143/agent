@@ -196,10 +196,23 @@ def get_config_endpoint():
     config.pop("linkedin_password", None)
     config.pop("openrouter_api_key", None)
     return jsonify(config)
+# Global status for tracking automation steps
+agent_status = "Ready"
+
+@app.route("/api/status")
+def get_bot_status():
+    global agent_status
+    return jsonify({"status": agent_status})
 
 @app.route("/api/linkedin/post", methods=["POST"])
 def post_to_linkedin():
+    global agent_status
+    def set_status(msg):
+        global agent_status
+        agent_status = msg
+
     try:
+        set_status("Initializing...")
         data = request.json
         config = get_config()
         email = data.get("linkedin_email") or config.get("linkedin_email", "")
@@ -210,13 +223,17 @@ def post_to_linkedin():
             return jsonify({"success": False, "message": "LinkedIn credentials required"})
         
         bot = LinkedInBot(email, password)
+        set_status("Setting up browser...")
         bot.setup_driver(headless=True)
         
-        if not bot.login():
+        set_status("Authorizing on LinkedIn...")
+        login_res = bot.login()
+        if login_res != "SUCCESS" and login_res is not True:
             bot.close()
-            return jsonify({"success": False, "message": "Login failed (CAPTCHA or Security Challenge)"})
+            set_status("Login Failed")
+            return jsonify({"success": False, "message": "Login failed. Check Credentials."})
             
-        success = bot.post_text(content)
+        success = bot.post_text(content, status_callback=set_status)
         bot.close()
         
         if success:
