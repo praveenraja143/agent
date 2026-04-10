@@ -116,10 +116,15 @@ def serve_sw():
 def save_config_endpoint():
     data = request.json
     config = get_config()
+    
+    # Trim API key if present
+    if "openrouter_api_key" in data:
+        data["openrouter_api_key"] = data["openrouter_api_key"].strip()
+        
     config.update(data)
     save_config(config)
     state = get_state()
-    state["skills"] = data.get("skills", [])
+    state["skills"] = data.get("skills", state.get("skills", []))
     save_state(state)
     return jsonify({"success": True, "message": "Configuration saved"})
 

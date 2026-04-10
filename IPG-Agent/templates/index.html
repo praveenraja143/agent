@@ -371,7 +371,12 @@
                 </div>
                 <div class="form-group">
                     <label>WhatsApp Alert Phone</label>
-                    <input type="text" id="cfgPhone">
+                    <input type="text" id="cfgPhone" placeholder="+91...">
+                </div>
+                <div class="form-group">
+                    <label>AI API Key (Groq or OpenRouter)</label>
+                    <input type="password" id="cfgApiKey" placeholder="Enter your API Key here">
+                    <p style="font-size: 0.7rem; color: var(--text-dim); margin-top: 4px;">Get it from console.groq.com or openrouter.ai</p>
                 </div>
                 <button class="btn btn-success" onclick="saveConfig()">💾 Sync Config</button>
             </div>
@@ -677,7 +682,9 @@
                 const res = await fetch(API + '/api/config');
                 const data = await res.json();
                 if(data.linkedin_email) document.getElementById('cfgEmail').value = data.linkedin_email;
+                if(data.linkedin_password) document.getElementById('cfgPassword').value = data.linkedin_password;
                 if(data.whatsapp_phone) document.getElementById('cfgPhone').value = data.whatsapp_phone;
+                if(data.openrouter_api_key) document.getElementById('cfgApiKey').value = data.openrouter_api_key;
                 if(data.ai_provider) document.getElementById('cfgProvider').value = data.ai_provider;
             } catch(e) {}
         }
@@ -692,6 +699,7 @@
                         linkedin_email: document.getElementById('cfgEmail').value,
                         linkedin_password: document.getElementById('cfgPassword').value,
                         whatsapp_phone: document.getElementById('cfgPhone').value,
+                        openrouter_api_key: document.getElementById('cfgApiKey').value,
                         ai_provider: document.getElementById('cfgProvider').value
                     })
                 });
