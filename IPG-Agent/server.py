@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, render_template, send_from_directory
+from flask import Flask, request, jsonify, render_template, send_from_directory, session, redirect, url_for
 import os
 import json
 import time
@@ -18,6 +18,30 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__, template_folder='templates')
+app.secret_key = os.getenv("SECRET_KEY", "ipg-agent-secret-007")
+
+@app.before_request
+def check_auth():
+    # Public routes
+    public_paths = ['/login', '/api/login', '/manifest.json', '/sw.js']
+    if request.path in public_paths or request.path.startswith('/static'):
+        return None
+    
+    # Require login for everything else
+    if not session.get('logged_in'):
+        if request.path.startswith('/api'):
+            return jsonify({"success": False, "message": "Unauthorized"}), 401
+        return render_template('login.html')
+
+@app.route('/api/login', methods=['POST'])
+def api_login():
+    data = request.json
+    password = data.get('password')
+    admin_pass = os.getenv("AGENT_PASSWORD", "admin123")
+    if password == admin_pass:
+        session['logged_in'] = True
+        return jsonify({"success": True})
+    return jsonify({"success": False, "message": "Invalid password"})
 
 @app.route('/')
 def index():
