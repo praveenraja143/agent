@@ -1,0 +1,16 @@
+{
+  "name": "IPG Agent",
+  "short_name": "IPGAgent",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#050510",
+  "theme_color": "#0a66c2",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/174/174857.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

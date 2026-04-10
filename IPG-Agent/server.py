@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template, send_from_directory
 import os
 import json
 import time
@@ -77,6 +77,14 @@ def root():
 @app.route("/health")
 def health():
     return jsonify({"status": "healthy", "time": datetime.now().isoformat()})
+
+@app.route('/manifest.json')
+def serve_manifest():
+    return send_from_directory('templates', 'manifest.json')
+
+@app.route('/sw.js')
+def serve_sw():
+    return send_from_directory('templates', 'sw.js')
 
 @app.route("/api/config", methods=["POST"])
 def save_config_endpoint():
