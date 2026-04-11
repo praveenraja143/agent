@@ -144,25 +144,6 @@ def save_state(state):
     with open(STATE_FILE, 'w') as f:
         json.dump(state, f, indent=2)
 
-@app.route("/")
-def root():
-    return jsonify({
-        "name": "IPG Agent API",
-        "status": "running",
-        "version": "1.0.0",
-        "endpoints": {
-            "POST /api/config": "Save configuration",
-            "GET /api/config": "Get configuration",
-            "POST /api/linkedin/post": "Post to LinkedIn",
-            "POST /api/certificate": "Post certificate",
-            "POST /api/jobs/search": "Search jobs",
-            "POST /api/whatsapp/send": "Send WhatsApp",
-            "POST /api/resume/parse": "Parse resume",
-            "POST /api/ai/generate": "Generate AI content",
-            "GET /api/state": "Get agent state",
-            "GET /health": "Health check",
-        }
-    })
 
 @app.route("/health")
 def health():
