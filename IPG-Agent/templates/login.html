@@ -3,17 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IPG Agent - Secure Access</title>
+    <title>IPG Agent - Restricted Access</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
     <style>
         :root {
             --primary: #00f2fe;
             --secondary: #4facfe;
-            --accent: #5e5ce6;
-            --bg: #05060a;
-            --card-bg: rgba(15, 17, 26, 0.8);
+            --bg: #0a0b10;
+            --card-bg: rgba(20, 22, 30, 0.7);
             --glass-border: rgba(255, 255, 255, 0.1);
-            --text: #f0f2f5;
+            --text: #ffffff;
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Outfit', sans-serif; }
@@ -21,9 +20,8 @@
         body {
             background-color: var(--bg);
             background-image: 
-                radial-gradient(circle at 15% 15%, rgba(0, 242, 254, 0.08) 0%, transparent 40%),
-                radial-gradient(circle at 85% 85%, rgba(79, 172, 254, 0.08) 0%, transparent 40%),
-                url('https://www.transparenttextures.com/patterns/carbon-fibre.png');
+                radial-gradient(circle at 10% 20%, rgba(0, 242, 254, 0.05) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(79, 172, 254, 0.05) 0%, transparent 40%);
             height: 100vh;
             display: flex;
             align-items: center;
@@ -34,140 +32,86 @@
 
         .login-card {
             background: var(--card-bg);
-            backdrop-filter: blur(25px);
-            padding: 48px;
-            border-radius: 32px;
+            backdrop-filter: blur(20px);
+            padding: 40px;
+            border-radius: 24px;
             border: 1px solid var(--glass-border);
-            width: 90%;
-            max-width: 420px;
+            width: 100%;
+            max-width: 380px;
             text-align: center;
-            box-shadow: 0 40px 100px -20px rgba(0, 0, 0, 0.8), 0 0 20px rgba(0, 242, 254, 0.1);
-            animation: slideUp 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            animation: fadeIn 0.8s ease-out;
         }
 
-        @keyframes slideUp {
-            from { opacity: 0; transform: translateY(40px) scale(0.95); }
-            to { opacity: 1; transform: translateY(0) scale(1); }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
-        .icon {
-            font-size: 3rem;
-            margin-bottom: 24px;
+        .logo {
+            font-size: 2.5rem;
+            margin-bottom: 20px;
             background: linear-gradient(135deg, var(--primary), var(--secondary));
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            filter: drop-shadow(0 0 10px rgba(0, 242, 254, 0.3));
+            font-weight: 700;
         }
 
-        h1 { font-size: 2.2rem; font-weight: 700; margin-bottom: 8px; tracking: -0.5px; }
-        p.subtitle { margin-bottom: 32px; color: rgba(255,255,255,0.4); font-size: 0.9rem; }
+        h2 { margin-bottom: 30px; font-weight: 400; font-size: 1.1rem; color: rgba(255,255,255,0.7); }
 
-        .form-group { position: relative; margin-bottom: 24px; }
+        .input-group { margin-bottom: 25px; text-align: left; }
         
         input {
             width: 100%;
-            padding: 18px 20px;
-            border-radius: 16px;
-            border: 1.5px solid var(--glass-border);
-            background: rgba(255, 255, 255, 0.04);
+            padding: 16px;
+            border-radius: 12px;
+            border: 1px solid var(--glass-border);
+            background: rgba(255, 255, 255, 0.05);
             color: white;
-            font-size: 1.05rem;
+            font-size: 1rem;
             outline: none;
-            transition: all 0.3s ease;
-            letter-spacing: 0.5px;
+            transition: 0.3s;
         }
 
-        input:focus { 
-            border-color: var(--primary); 
-            background: rgba(255, 255, 255, 0.08);
-            box-shadow: 0 0 15px rgba(0, 242, 254, 0.15);
-        }
+        input:focus { border-color: var(--primary); background: rgba(255, 255, 255, 0.1); }
 
         .btn {
             width: 100%;
-            padding: 18px;
-            border-radius: 16px;
+            padding: 16px;
+            border-radius: 12px;
             border: none;
             background: linear-gradient(135deg, var(--primary), var(--secondary));
-            color: #05060a;
-            font-weight: 700;
-            font-size: 1.1rem;
+            color: #000;
+            font-weight: 600;
+            font-size: 1rem;
             cursor: pointer;
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
+            transition: 0.3s;
         }
 
-        .btn:hover { 
-            transform: translateY(-4px) scale(1.02); 
-            box-shadow: 0 20px 40px -10px rgba(0, 242, 254, 0.4);
-        }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 10px 20px -5px var(--secondary); }
 
-        .btn:active { transform: translateY(-2px); }
-
-        .error-msg { 
-            color: #ff4d4d; 
-            font-size: 0.85rem; 
-            margin-top: 16px; 
-            display: none; 
-            background: rgba(255, 77, 77, 0.1);
-            padding: 10px;
-            border-radius: 8px;
-            border: 1px solid rgba(255, 77, 77, 0.2);
-            animation: shake 0.4s;
-        }
-
-        @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            25% { transform: translateX(-5px); }
-            75% { transform: translateX(5px); }
-        }
-
-        .help-text {
-            margin-top: 24px;
-            font-size: 0.75rem;
-            color: rgba(255,255,255,0.3);
-        }
-        
-        .help-text a { color: var(--primary); text-decoration: none; border-bottom: 1px solid transparent; }
-        .help-text a:hover { border-bottom-color: var(--primary); }
+        .error { color: #ff4d4d; font-size: 0.85rem; margin-top: 15px; display: none; }
     </style>
 </head>
 <body>
     <div class="login-card">
-        <div class="icon">🛡️</div>
-        <h1>IPG AGENT</h1>
-        <p class="subtitle">Enter your security key to access the command center</p>
+        <div class="logo">🚀 IPG AGENT</div>
+        <h2>Unlock your workspace</h2>
         
         <form id="loginForm">
-            <div class="form-group">
-                <input type="password" id="password" placeholder="Dashboard Password" required autofocus>
+            <div class="input-group">
+                <input type="password" id="password" placeholder="Enter Admin Password" required autofocus>
             </div>
-            <button type="submit" class="btn">
-                <span>Access Terminal</span>
-                <span style="font-size: 1.3rem;">→</span>
-            </button>
-            <div id="error" class="error-msg">Invalid Security Key. Please try again.</div>
+            <button type="submit" class="btn">Continue to Dashboard</button>
+            <div id="error" class="error">Invalid password. Try again.</div>
         </form>
-
-        <div class="help-text">
-            Forgot key? Check your <a href="#">Render Env Variables</a>
-        </div>
     </div>
 
     <script>
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const password = document.getElementById('password').value;
-            const btn = e.target.querySelector('button');
             const err = document.getElementById('error');
-            
-            // UI Feedback
-            btn.style.opacity = "0.7";
-            btn.innerText = "Verifying...";
-            err.style.display = 'none';
             
             try {
                 const res = await fetch('/api/login', {
@@ -179,13 +123,10 @@
                 if (data.success) {
                     window.location.reload();
                 } else {
-                    btn.style.opacity = "1";
-                    btn.innerHTML = '<span>Access Terminal</span><span style="font-size: 1.3rem;">→</span>';
                     err.style.display = 'block';
                 }
             } catch (e) {
-                btn.style.opacity = "1";
-                err.textContent = "Connectivity issue. Try again.";
+                err.textContent = "Server error. Check connection.";
                 err.style.display = 'block';
             }
         });

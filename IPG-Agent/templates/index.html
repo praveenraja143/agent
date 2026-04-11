@@ -280,7 +280,7 @@
                 <div id="globalStatus" style="font-size: 0.75rem; color: var(--secondary); font-weight: bold; background: rgba(0,242,254,0.1); padding: 4px 12px; border-radius: 20px;">System Ready</div>
             </div>
 
-            <!-- Account Connection -->
+            <!-- Account Connection (OAuth — No Password Needed!) -->
             <div class="card" style="border-color: var(--secondary); margin-bottom: 20px;">
                 <h3 style="margin-bottom: 15px; font-size: 1.1rem; display: flex; align-items: center; gap: 10px;">
                     🔗 Account Link
@@ -290,17 +290,13 @@
                         <div style="width: 50px; height: 50px; background: linear-gradient(135deg, var(--primary), var(--secondary)); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; color: white;">👤</div>
                         <div>
                             <h3 id="profileName" style="font-size: 1.1rem; margin-bottom: 2px;">LinkedIn User</h3>
-                            <p style="font-size: 0.75rem; color: var(--success); font-weight: 500;">● SYSTEM CONNECTED</p>
+                            <p style="font-size: 0.75rem; color: var(--success); font-weight: 500;">● CONNECTED VIA API</p>
                         </div>
                     </div>
                 </div>
                 <div id="connectPrompt">
-                    <button class="btn pulse" id="connectBtn" onclick="testConnection()">🚀 Connect & Continue</button>
-                    <div id="otpSection" style="display: none; margin-top: 15px; text-align: left;">
-                        <label style="font-size: 0.8rem; margin-bottom: 8px; display: block;">Enter 6-digit Code</label>
-                        <input type="text" id="otpCode" placeholder="123456" style="margin-bottom: 10px;">
-                        <button class="btn btn-outline" onclick="submitOTP()">✅ Submit Code</button>
-                    </div>
+                    <p style="font-size: 0.8rem; color: var(--text-dim); margin-bottom: 12px;">Connect via LinkedIn OAuth. No password stored. First set your Client ID & Secret in Settings.</p>
+                    <a href="/api/linkedin/auth" class="btn pulse" id="connectBtn" style="display: inline-block; text-align: center; text-decoration: none;">🔐 Connect with LinkedIn</a>
                 </div>
                 <div id="testResult" style="font-size: 0.85rem; margin-top: 10px; text-align: center;"></div>
             </div>
@@ -382,21 +378,22 @@
             </div>
             <div class="card">
                 <div class="form-group">
-                    <label>LinkedIn Email</label>
-                    <input type="email" id="cfgEmail">
+                    <label>LinkedIn Client ID</label>
+                    <input type="text" id="cfgClientId" placeholder="e.g. 86abc123xyz">
+                    <p style="font-size: 0.65rem; color: var(--text-dim); margin-top: 4px;">Get from linkedin.com/developers → Your App → Auth</p>
                 </div>
                 <div class="form-group">
-                    <label>LinkedIn Password</label>
-                    <input type="password" id="cfgPassword" placeholder="••••••••">
+                    <label>LinkedIn Client Secret</label>
+                    <input type="password" id="cfgClientSecret" placeholder="••••••••">
+                </div>
+                <div class="form-group">
+                    <label>Groq API Key</label>
+                    <input type="password" id="cfgApiKey" placeholder="gsk_...">
+                    <p style="font-size: 0.65rem; color: var(--text-dim); margin-top: 4px;">Get from console.groq.com</p>
                 </div>
                 <div class="form-group">
                     <label>WhatsApp Alert Phone</label>
                     <input type="text" id="cfgPhone" placeholder="+91...">
-                </div>
-                <div class="form-group">
-                    <label>AI API Key (Groq or OpenRouter)</label>
-                    <input type="password" id="cfgApiKey" placeholder="Enter your API Key here">
-                    <p style="font-size: 0.7rem; color: var(--text-dim); margin-top: 4px;">Get it from console.groq.com or openrouter.ai</p>
                 </div>
                 <button class="btn btn-success" onclick="saveConfig()">💾 Sync Config</button>
             </div>
@@ -661,82 +658,35 @@
             } catch(e) { showToast("Search failed", true); }
         }
 
-        async function testConnection() {
-            const resArea = document.getElementById('testResult');
-            const connectBtn = document.getElementById('connectBtn');
-            const connCard = document.getElementById('connectionCard');
-            const prompt = document.getElementById('connectPrompt');
-            const profName = document.getElementById('profileName');
-            const otpSec = document.getElementById('otpSection');
-
-            resArea.textContent = "⚙️ Establishing secure link... (approx. 15s)";
-            resArea.style.color = "var(--accent)";
-            connectBtn.disabled = true;
-            connectBtn.classList.remove('pulse');
-
+        async function checkLinkedInStatus() {
             try {
-                const res = await fetch(API + '/api/test/linkedin', { method: 'POST' });
+                const res = await fetch(API + '/api/linkedin/status');
                 const data = await res.json();
-                
-                if (data.status === "OTP_REQUIRED") {
-                    resArea.textContent = data.message;
-                    resArea.style.color = "var(--accent)";
-                    otpSec.style.display = "block";
-                    connectBtn.style.display = "none";
-                    return;
-                }
+                const connCard = document.getElementById('connectionCard');
+                const prompt = document.getElementById('connectPrompt');
+                const profName = document.getElementById('profileName');
+                const statusEl = document.getElementById('globalStatus');
 
-                resArea.textContent = data.message;
-                
-                if (data.success) {
-                    resArea.style.color = "var(--success)";
+                if(data.connected) {
                     profName.textContent = data.user || "LinkedIn User";
-                    connCard.style.display = "block";
-                    prompt.style.display = "none";
-                    showToast("🎉 Account Connected!");
+                    connCard.style.display = 'block';
+                    prompt.style.display = 'none';
+                    statusEl.innerText = "✅ Connected";
+                    statusEl.style.color = "var(--success)";
                 } else {
-                    resArea.style.color = "var(--error)";
-                    connectBtn.disabled = false;
-                    connectBtn.classList.add('pulse');
+                    connCard.style.display = 'none';
+                    prompt.style.display = 'block';
+                    statusEl.innerText = data.message || "Not Connected";
                 }
-            } catch(e) { 
-                resArea.textContent = "Connection Error"; 
-                connectBtn.disabled = false;
-            }
-        }
-
-        async function submitOTP() {
-            const code = document.getElementById('otpCode').value;
-            const resArea = document.getElementById('testResult');
-            if(!code) return alert("Enter the code first");
-            
-            resArea.textContent = "🚀 Verifying code and linking account...";
-            try {
-                const res = await fetch(API + '/api/test/linkedin/otp', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ otp: code })
-                });
-                const data = await res.json();
-                if(data.success) {
-                    window.location.reload();
-                } else {
-                    resArea.textContent = data.message;
-                    resArea.style.color = "var(--error)";
-                }
-            } catch(e) {
-                resArea.textContent = "OTP Submit Error";
-            }
+            } catch(e) {}
         }
 
         async function loadConfig() {
             try {
                 const res = await fetch(API + '/api/config');
                 const data = await res.json();
-                if(data.linkedin_email) document.getElementById('cfgEmail').value = data.linkedin_email;
-                if(data.linkedin_password) document.getElementById('cfgPassword').value = data.linkedin_password;
+                if(data.linkedin_client_id) document.getElementById('cfgClientId').value = data.linkedin_client_id;
                 if(data.whatsapp_phone) document.getElementById('cfgPhone').value = data.whatsapp_phone;
-                if(data.openrouter_api_key) document.getElementById('cfgApiKey').value = data.openrouter_api_key;
             } catch(e) {}
         }
 
@@ -747,19 +697,20 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        linkedin_email: document.getElementById('cfgEmail').value,
-                        linkedin_password: document.getElementById('cfgPassword').value,
-                        whatsapp_phone: document.getElementById('cfgPhone').value,
-                        openrouter_api_key: document.getElementById('cfgApiKey').value
+                        linkedin_client_id: document.getElementById('cfgClientId').value,
+                        linkedin_client_secret: document.getElementById('cfgClientSecret').value,
+                        groq_api_key: document.getElementById('cfgApiKey').value,
+                        whatsapp_phone: document.getElementById('cfgPhone').value
                     })
                 });
                 const data = await res.json();
-                showToast("✅ Config Synced");
+                showToast("✅ Config Synced — Now click 'Connect with LinkedIn' on Home!");
             } catch(e) { showToast("Save failed", true); }
         }
 
         loadState();
         loadConfig();
+        checkLinkedInStatus();
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
