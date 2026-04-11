@@ -64,7 +64,7 @@ def get_config():
         with open(CONFIG_FILE, 'r') as f:
             return json.load(f)
     return {
-        "linkedin_client_id": os.getenv("LINKEDIN_CLIENT_ID", ""),
+        "linkedin_client_id": os.getenv("LINKEDIN_CLIENT_ID", "86bc4xt6m1p06h"),
         "linkedin_client_secret": os.getenv("LINKEDIN_CLIENT_SECRET", ""),
         "linkedin_access_token": os.getenv("LINKEDIN_ACCESS_TOKEN", ""),
         "linkedin_person_id": os.getenv("LINKEDIN_PERSON_ID", ""),
